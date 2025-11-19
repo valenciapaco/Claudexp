@@ -89,9 +89,11 @@ class SlidePresentation {
     updateSlide() {
         // Remove active class from all slides
         this.slides.forEach((slide, index) => {
-            slide.classList.remove('active', 'prev');
+            slide.classList.remove('active', 'prev', 'next');
             if (index < this.currentSlide) {
                 slide.classList.add('prev');
+            } else if (index > this.currentSlide) {
+                slide.classList.add('next');
             }
         });
 
@@ -109,11 +111,38 @@ class SlidePresentation {
         this.prevBtn.disabled = this.currentSlide === 0;
         this.nextBtn.disabled = this.currentSlide === this.totalSlides - 1;
 
+        // Update background gradient based on current slide
+        this.updateBackgroundGradient();
+
         // Scroll content to top when changing slides
         const content = this.slides[this.currentSlide].querySelector('.content');
         if (content) {
             content.scrollTop = 0;
         }
+    }
+
+    updateBackgroundGradient() {
+        // Create dynamic gradient based on slide position
+        const slideProgress = this.currentSlide / (this.totalSlides - 1);
+
+        // Define color stops for the gradient journey
+        const gradients = [
+            'linear-gradient(135deg, #ec4899 0%, #f472b6 50%, #d946ef 100%)', // Pink start
+            'linear-gradient(135deg, #f472b6 0%, #d946ef 50%, #c026d3 100%)', // Pink to magenta
+            'linear-gradient(135deg, #d946ef 0%, #c026d3 50%, #a855f7 100%)', // Magenta
+            'linear-gradient(135deg, #c026d3 0%, #a855f7 50%, #9333ea 100%)', // Magenta to purple
+            'linear-gradient(135deg, #a855f7 0%, #9333ea 50%, #7e22ce 100%)', // Purple
+            'linear-gradient(135deg, #9333ea 0%, #7e22ce 50%, #6b21a8 100%)'  // Dark purple
+        ];
+
+        // Calculate which gradient to use based on progress
+        const gradientIndex = Math.min(
+            Math.floor(slideProgress * (gradients.length - 1)),
+            gradients.length - 1
+        );
+
+        document.body.style.background = gradients[gradientIndex];
+        document.body.style.backgroundSize = '400% 400%';
     }
 }
 
