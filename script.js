@@ -142,7 +142,6 @@ class SlidePresentation {
         );
 
         document.body.style.background = gradients[gradientIndex];
-        document.body.style.backgroundSize = '400% 400%';
     }
 }
 
