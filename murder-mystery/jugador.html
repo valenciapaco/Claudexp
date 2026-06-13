@@ -290,9 +290,33 @@ function renderZonaFase(){
 
   let html = "";
 
+  const esCulpable = (DATOS.rol === "peps" || DATOS.rol === "complice");
+
   // ---- Votación ----
   if (votacionAbierta){
-    if (!VOTO.emitido){
+    if (esCulpable){
+      // El Peps y el cómplice NO votan de verdad: solo hacen teatro para despistar.
+      if (!VOTO.emitido){
+        html += `<div class="card aparece"><h2>🗳️ Votación</h2>
+          <div class="peligro">🤫 Tú ya sabes quién fue (fuiste parte). <strong>Haz como que votas</strong>: señala a alguien para despistar y pícale. <strong>Si no te descubren a TI, tú ganas.</strong></div>
+          <select id="voto-sel"><option value="">— A quién "acusas" —</option>${
+            GAME_DATA.personajes.filter(p=>p.nombre!==DATOS.nombre)
+              .map(p=>`<option value="${p.nombre}">${p.nombre}</option>`).join("")
+          }</select>
+          <button onclick="emitirVoto()">🗳️ Hacer como que voto</button>
+        </div>`;
+      } else if (!VOTO.revelado){
+        html += `<div class="card aparece"><h2>🔒 Listo</h2>
+          <p>Cuando el anfitrión diga "¡revelen!", muestra tu "voto" como todos. Puro teatro. 😏</p>
+          <button onclick="revelarVoto()">👀 Revelar</button>
+        </div>`;
+      } else {
+        html += `<div class="card aparece"><h2>📣 Tu "voto"</h2>
+          <div class="secreto">Acusaste (de mentiritas) a: <strong>${VOTO.valor}</strong></div>
+          <p class="small">Disimula bien. Ganas si no te descubren.</p>
+        </div>`;
+      }
+    } else if (!VOTO.emitido){
       html += `<div class="card aparece"><h2>🗳️ ¡Hora de votar!</h2>
         <p>¿Quién crees que se llevó el Niño Envuelto? Elige y emite tu voto. <strong>Una vez emitido no se puede cambiar.</strong></p>
         <select id="voto-sel"><option value="">— Tu sospechoso/a —</option>${
@@ -316,21 +340,25 @@ function renderZonaFase(){
 
   // ---- Final ----
   if (revelado){
-    const votoPeps = (VOTO.valor === GAME_DATA.peps);
     html += `<div class="card aparece"><h2>🎭 La verdad</h2>
       <p>${GAME_DATA.revelacion.intro}</p>
       <div class="peligro">${GAME_DATA.revelacion.golpe}</div>`;
-    html += votoPeps
-      ? `<h3>🔍 ¡Viste el giro!</h3><p class="small">Dijiste que fue El Peps. Ahora remátalo: ¿quién fue su <strong>cómplice</strong>? Si le atinas, ganas puntos extra.</p>`
-      : `<h3>🧩 Segunda oportunidad</h3><p class="small">¿Quién crees que fue el <strong>cómplice</strong> de El Peps? Si le atinas, ganas esos puntos. (El verdadero culpable se revela en la pantalla central.)</p>`;
-    if (!DATOS.otroCulpable){
-      html += `<select id="otro-sel"><option value="">— El cómplice —</option>${
-        GAME_DATA.personajes.filter(p=>p.nombre!==DATOS.nombre && p.nombre!==GAME_DATA.peps)
-          .map(p=>`<option value="${p.nombre}">${p.nombre}</option>`).join("")
-      }</select>
-      <button onclick="enviarOtro()">Confirmar</button>`;
+    if (esCulpable){
+      html += `<div class="secreto">🤫 Tú ya sabías la verdad (eras parte). No tienes que adivinar nada: <strong>haz como que piensas</strong> y disimula. Si nadie te descubrió, ¡ganaste 100 puntos y tu Niño Envuelto en secreto! 😏</div>`;
     } else {
-      html += `<div class="secreto">Tu apuesta por el cómplice: <strong>${DATOS.otroCulpable}</strong></div>`;
+      const votoPeps = (VOTO.valor === GAME_DATA.peps);
+      html += votoPeps
+        ? `<h3>🔍 ¡Viste el giro!</h3><p class="small">Dijiste que fue El Peps. Ahora remátalo: ¿quién fue su <strong>cómplice</strong>? Si le atinas, ganas puntos extra.</p>`
+        : `<h3>🧩 Segunda oportunidad</h3><p class="small">¿Quién crees que fue el <strong>cómplice</strong> de El Peps? Si le atinas, ganas esos puntos. (El verdadero culpable se revela en la pantalla central.)</p>`;
+      if (!DATOS.otroCulpable){
+        html += `<select id="otro-sel"><option value="">— El cómplice —</option>${
+          GAME_DATA.personajes.filter(p=>p.nombre!==DATOS.nombre && p.nombre!==GAME_DATA.peps)
+            .map(p=>`<option value="${p.nombre}">${p.nombre}</option>`).join("")
+        }</select>
+        <button onclick="enviarOtro()">Confirmar</button>`;
+      } else {
+        html += `<div class="secreto">Tu apuesta por el cómplice: <strong>${DATOS.otroCulpable}</strong></div>`;
+      }
     }
     html += `<div id="mi-puntaje"></div></div>`;
   }
@@ -342,7 +370,8 @@ function renderZonaFase(){
 function emitirVoto(){
   const val = $("voto-sel").value;
   if (!val){ alert("Elige a alguien antes de emitir."); return; }
-  if (!confirm("¿Seguro? Una vez emitido, tu voto por " + val + " NO se puede cambiar.")) return;
+  const esCulpable = (DATOS.rol === "peps" || DATOS.rol === "complice");
+  if (!esCulpable && !confirm("¿Seguro? Una vez emitido, tu voto por " + val + " NO se puede cambiar.")) return;
   VOTO = { valor: val, emitido: true, revelado: false };
   guardarLocal(); enviarEstado(); renderZonaFase();
 }

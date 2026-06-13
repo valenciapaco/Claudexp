@@ -92,7 +92,8 @@ Todo se controla desde `pantalla.html` con el botón **Siguiente**. La pantalla 
 - **Misiones cumplidas:** +1 cada una (cada quien las marca en su teléfono; se revelan por ronda).
 - **Tu voto (acusación principal):** al **cómplice** = +5; a **El Peps** = +8 (viste el giro).
 - **Segundo paso — encontrar al cómplice:** +5 si nombras al **cómplice** y tu voto principal **no** fue el cómplice. O sea: si votaste a El Peps, remátalo encontrando al cómplice (8+5 = la jugada ganadora); y si no le atinaste a ninguno, es tu segunda oportunidad para hallar al cómplice. Si ya habías votado al cómplice, esos puntos ya están contados (no se duplican), y **no** puedes reclamar a El Peps después.
-- **Bonus:** El Peps "Maestro del Engaño" si casi nadie lo señaló (+5); el cómplice "Sombra Perfecta" (+3); detectives certeros (+3).
+- **Los culpables (El Peps y el cómplice) no votan de verdad:** su teléfono les dice "haz como que votas" para despistar. Cada uno **gana 100 puntos si NO lo descubren** (si menos del 25% lo señaló), y ganan de forma independiente. Su chamba toda la noche es no ser cazados.
+- **Detectives certeros:** +3 si atinaron al cómplice o a El Peps.
 
 La pantalla central suma todo sola y le devuelve a cada teléfono su total.
 

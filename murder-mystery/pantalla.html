@@ -262,49 +262,57 @@ function conteoVotosHTML(){
 }
 
 /* ===================== Cálculo final ===================== */
-function calcularFinal(){
-  const arr = jugadoresArray().filter(j=>j.nombre);
-  if (arr.length === 0) return;
+// Calcula j.total y j.desglose para cada jugador (en memoria, sin escribir).
+function computarPuntajes(arr){
   const P = GAME_DATA.puntos;
   const peps = nombrePeps();
   const compl = nombreComplice();
 
-  const votantes = arr.filter(j=>j.voto).length || 1;
-  const votosA = {};
-  arr.forEach(j=>{ if (j.voto) votosA[j.voto]=(votosA[j.voto]||0)+1; });
-  const fracPeps  = (votosA[peps]||0)/votantes;
-  const fracCompl = compl ? (votosA[compl]||0)/votantes : 1;
+  // El Peps y el cómplice NO cuentan como votantes (ellos no investigan).
+  const reales = arr.filter(j => j.rol !== "peps" && j.rol !== "complice");
+  const votantes = reales.filter(j=>j.voto).length || 1;
+  const votosPeps  = reales.filter(j=>j.voto===peps).length;
+  // El cómplice se considera "descubierto" si lo señalan en el voto O en el 2º paso.
+  const descCompl  = compl ? reales.filter(j=>j.voto===compl || j.otroCulpable===compl).length : 0;
+  const fracPeps  = votosPeps/votantes;
+  const fracCompl = compl ? descCompl/votantes : 1;
 
   arr.forEach(j=>{
     let total = j.puntosMisiones || 0;
     const partes = [`Misiones: ${j.puntosMisiones||0}`];
+    const esCulpable = (j.rol === "peps" || j.rol === "complice");
 
-    // Voto principal
-    if (j.voto === peps){ total += P.votoPeps; partes.push(`Votó a El Peps: +${P.votoPeps}`); }
-    else if (compl && j.voto === compl){ total += P.votoComplice; partes.push(`Votó al cómplice: +${P.votoComplice}`); }
+    if (!esCulpable){
+      // --- Jugadores normales y detectives: deducción ---
+      if (j.voto === peps){ total += P.votoPeps; partes.push(`Votó a El Peps: +${P.votoPeps}`); }
+      else if (compl && j.voto === compl){ total += P.votoComplice; partes.push(`Votó al cómplice: +${P.votoComplice}`); }
 
-    // Segundo paso: encontrar al CÓMPLICE.
-    //  +5 si nombras al cómplice y tu voto principal NO fue el cómplice
-    //  (si ya lo habías votado, esos puntos ya están contados: no se duplican).
-    //  Nombrar a El Peps aquí nunca da puntos: ese bono había que ganarlo
-    //  votándolo de frente como acusación principal.
-    if (compl && j.otroCulpable === compl && j.voto !== compl){
-      total += P.otroCulpable; partes.push(`Encontró al cómplice: +${P.otroCulpable}`);
+      // Segundo paso: encontrar al cómplice (si tu voto NO fue el cómplice).
+      if (compl && j.otroCulpable === compl && j.voto !== compl){
+        total += P.otroCulpable; partes.push(`Encontró al cómplice: +${P.otroCulpable}`);
+      }
+      if (j.rol === "detective" && (j.voto === peps || (compl && j.voto === compl))){
+        total += P.detectiveAcierto; partes.push(`Detective certero: +${P.detectiveAcierto}`);
+      }
+    } else {
+      // --- El Peps / el cómplice: 100 si NO los descubrieron (independiente) ---
+      if (j.nombre === peps && fracPeps < P.umbralEvasion){ total += P.evasionPeps; partes.push(`¡No descubrieron a El Peps! +${P.evasionPeps}`); }
+      if (j.rol === "complice" && fracCompl < P.umbralEvasion){ total += P.evasionComplice; partes.push(`El cómplice se salvó: +${P.evasionComplice}`); }
     }
 
-    // Bonus de rol
-    if (j.nombre === peps && fracPeps < P.umbralEvasion){ total += P.evasionPeps; partes.push(`Maestro del Engaño: +${P.evasionPeps}`); }
-    if (j.rol === "complice" && fracCompl < P.umbralEvasion){ total += P.evasionComplice; partes.push(`Sombra Perfecta: +${P.evasionComplice}`); }
-    if (j.rol === "detective" && (j.voto === peps || (compl && j.voto === compl))){ total += P.detectiveAcierto; partes.push(`Detective certero: +${P.detectiveAcierto}`); }
-
-    j._total = total;
-    j._desglose = partes.join(" · ");
+    j.total = total;
+    j.desglose = partes.join(" · ");
   });
+}
 
-  // Escribir de vuelta a cada nodo
+function calcularFinal(){
+  const arr = jugadoresArray().filter(j=>j.nombre);
+  if (arr.length === 0) return;
+  computarPuntajes(arr);
+  // Escribir de vuelta a cada nodo para que cada teléfono vea su total.
   Object.entries(JUGADORES).forEach(([id,j])=>{
     if (j && j.nombre){
-      Sync.actualizarJugador(SALA, id, { total: j._total, desglose: j._desglose });
+      Sync.actualizarJugador(SALA, id, { total: j.total, desglose: j.desglose });
     }
   });
   finalCalculado = true;
@@ -315,11 +323,12 @@ function finalHTML(){
   if (!modoOnline) return `<div class="nota-aviso">El cálculo automático necesita Firebase conectado. Sin él, cada quien suma sus puntos en su teléfono.</div>`;
   const arr = jugadoresArray().filter(j=>j.nombre);
   if (arr.length === 0) return `<p class="center">No hay jugadores conectados.</p>`;
+  computarPuntajes(arr); // recalcula en memoria para mostrar siempre números frescos
   const peps = nombrePeps();
   const compl = nombreComplice() || "(nadie tomó el rol de cómplice)";
-  arr.sort((a,b)=>(b._total||0)-(a._total||0));
+  arr.sort((a,b)=>(b.total||0)-(a.total||0));
   let filas = arr.map((j,i)=>`<tr class="${i===0?'lider':''}">
-    <td class="pos">${i===0?'👑':i+1}</td><td>${j.nombre}</td><td class="pts">${j._total!=null?j._total:'…'}</td></tr>`).join("");
+    <td class="pos">${i===0?'👑':i+1}</td><td>${j.nombre}</td><td class="pts">${j.total!=null?j.total:0}</td></tr>`).join("");
   return `<div class="secreto center"><strong>El culpable real:</strong> ${peps} 🎂 &nbsp;|&nbsp; <strong>El cómplice:</strong> ${compl} 🤝</div>
     <table class="tabla-pos"><thead><tr><th>#</th><th>Jugador</th><th class="pts">Total</th></tr></thead><tbody>${filas}</tbody></table>
     <p class="center" style="font-size:1.2em;">🏆 ¡Ganador: <strong>${arr[0].nombre}</strong>! Le toca la primera rebanada del pastel de verdad... porque Niño Envuelto, ya saben, ya no quedó. 🎂</p>

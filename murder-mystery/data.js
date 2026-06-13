@@ -263,10 +263,10 @@ const GAME_DATA = {
     votoComplice: 5,     // tu voto fue el cómplice
     votoPeps: 8,         // tu voto fue El Peps (viste el giro)
     otroCulpable: 5,     // 2º paso: encontrar al cómplice (si tu voto NO fue el cómplice)
-    evasionPeps: 5,      // El Peps si casi nadie lo señaló
-    evasionComplice: 3,  // Cómplice si casi nadie lo señaló
+    evasionPeps: 100,    // El Peps gana 100 si NO lo descubren
+    evasionComplice: 100,// El cómplice gana 100 si NO lo descubren (independiente)
     detectiveAcierto: 3, // Detective que atinó a cómplice o Peps
-    umbralEvasion: 0.25  // "casi nadie" = menos del 25% lo señaló
+    umbralEvasion: 0.25  // "no lo descubrieron" = menos del 25% lo señaló
   },
 
   // ----------------------------------------------------------
