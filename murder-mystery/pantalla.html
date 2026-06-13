@@ -283,10 +283,13 @@ function calcularFinal(){
     if (j.voto === peps){ total += P.votoPeps; partes.push(`Votó a El Peps: +${P.votoPeps}`); }
     else if (compl && j.voto === compl){ total += P.votoComplice; partes.push(`Votó al cómplice: +${P.votoComplice}`); }
 
-    // El otro culpable
-    const culpables = [peps]; if (compl) culpables.push(compl);
-    if (j.otroCulpable && culpables.indexOf(j.otroCulpable)!==-1 && j.otroCulpable !== j.voto){
-      total += P.otroCulpable; partes.push(`Atinó al otro culpable: +${P.otroCulpable}`);
+    // Segundo paso: encontrar al CÓMPLICE.
+    //  +5 si nombras al cómplice y tu voto principal NO fue el cómplice
+    //  (si ya lo habías votado, esos puntos ya están contados: no se duplican).
+    //  Nombrar a El Peps aquí nunca da puntos: ese bono había que ganarlo
+    //  votándolo de frente como acusación principal.
+    if (compl && j.otroCulpable === compl && j.voto !== compl){
+      total += P.otroCulpable; partes.push(`Encontró al cómplice: +${P.otroCulpable}`);
     }
 
     // Bonus de rol

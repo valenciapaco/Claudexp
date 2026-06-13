@@ -262,7 +262,7 @@ const GAME_DATA = {
     porMision: 1,
     votoComplice: 5,     // tu voto fue el cómplice
     votoPeps: 8,         // tu voto fue El Peps (viste el giro)
-    otroCulpable: 5,     // botón: identificar al "otro" culpable
+    otroCulpable: 5,     // 2º paso: encontrar al cómplice (si tu voto NO fue el cómplice)
     evasionPeps: 5,      // El Peps si casi nadie lo señaló
     evasionComplice: 3,  // Cómplice si casi nadie lo señaló
     detectiveAcierto: 3, // Detective que atinó a cómplice o Peps

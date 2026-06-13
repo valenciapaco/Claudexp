@@ -316,19 +316,21 @@ function renderZonaFase(){
 
   // ---- Final ----
   if (revelado){
+    const votoPeps = (VOTO.valor === GAME_DATA.peps);
     html += `<div class="card aparece"><h2>🎭 La verdad</h2>
       <p>${GAME_DATA.revelacion.intro}</p>
-      <div class="peligro">${GAME_DATA.revelacion.golpe}</div>
-      <h3>🧩 ¿Y el OTRO culpable?</h3>
-      <p class="small">Tu voto contó para uno. Ahora dinos a quién crees que fue <strong>el otro</strong> (el cómplice si votaste a El Peps, o El Peps si votaste al cómplice).</p>`;
+      <div class="peligro">${GAME_DATA.revelacion.golpe}</div>`;
+    html += votoPeps
+      ? `<h3>🔍 ¡Viste el giro!</h3><p class="small">Dijiste que fue El Peps. Ahora remátalo: ¿quién fue su <strong>cómplice</strong>? Si le atinas, ganas puntos extra.</p>`
+      : `<h3>🧩 Segunda oportunidad</h3><p class="small">¿Quién crees que fue el <strong>cómplice</strong> de El Peps? Si le atinas, ganas esos puntos. (El verdadero culpable se revela en la pantalla central.)</p>`;
     if (!DATOS.otroCulpable){
-      html += `<select id="otro-sel"><option value="">— El otro culpable —</option>${
-        GAME_DATA.personajes.filter(p=>p.nombre!==DATOS.nombre)
+      html += `<select id="otro-sel"><option value="">— El cómplice —</option>${
+        GAME_DATA.personajes.filter(p=>p.nombre!==DATOS.nombre && p.nombre!==GAME_DATA.peps)
           .map(p=>`<option value="${p.nombre}">${p.nombre}</option>`).join("")
       }</select>
       <button onclick="enviarOtro()">Confirmar</button>`;
     } else {
-      html += `<div class="secreto">Tu otra apuesta: <strong>${DATOS.otroCulpable}</strong></div>`;
+      html += `<div class="secreto">Tu apuesta por el cómplice: <strong>${DATOS.otroCulpable}</strong></div>`;
     }
     html += `<div id="mi-puntaje"></div></div>`;
   }
