@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mi personaje — El Misterio del Niño Envuelto</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="bola-disco"></div>
+<div class="container">
+
+  <div class="header-retro">
+    <div class="emoji-grande">🪩🎂</div>
+    <h1>Tu personaje secreto</h1>
+    <p class="tagline">Ábrelo solo tú · El Misterio del Niño Envuelto</p>
+  </div>
+
+  <div id="estado" class="center"></div>
+
+  <!-- ===== REGISTRO ===== -->
+  <div id="registro" class="card">
+    <h2>Antes de empezar</h2>
+    <label for="sala">Código de la sala</label>
+    <input type="text" id="sala" placeholder="FIESTA">
+
+    <label for="nombre">Tu nombre (elígelo de la lista)</label>
+    <select id="nombre"><option value="">— Selecciona tu nombre —</option></select>
+
+    <label for="numero">Tu número secreto (te lo dio el anfitrión)</label>
+    <input type="number" id="numero" min="1" max="30" placeholder="Del 1 al 30">
+
+    <button onclick="registrar()">🔍 Ver mi personaje</button>
+    <p class="small center">Tu rol es secreto. No se lo enseñes a nadie.</p>
+  </div>
+
+  <!-- ===== PERSONAJE ===== -->
+  <div id="personaje"></div>
+
+</div>
+
+<!-- Firebase (compat). Si actualizas la versión, cambia el número en ambas líneas. -->
+<script src="https://www.gstatic.com/firebasejs/11.0.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.0/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="sync.js"></script>
+<script src="data.js"></script>
+<script>
+/* ===================== Estado ===================== */
+let SALA = "";
+let ID = "";
+let DATOS = {};         // { nombre, numero, rol }
+let RONDAS_ABIERTAS = {}; // { 1:true, ... }
+let MISIONES = {};      // { "r1m0": true, ... }
+let VOTO = { valor: null, emitido: false, revelado: false };
+let META = null;
+let modoOnline = false;
+
+/* ===================== Utilidades ===================== */
+function $(id){ return document.getElementById(id); }
+
+function rolDe(nombre, numero){
+  if (nombre === GAME_DATA.peps) return "peps";          // El Peps siempre culpable (por nombre)
+  const r = GAME_DATA.tablaRoles[numero] || "sospechoso";
+  return (r === "peps") ? "sospechoso" : r;              // evita doble-Peps por error de número
+}
+function personajePorNombre(nombre){
+  return GAME_DATA.personajes.find(p => p.nombre === nombre);
+}
+function guardarLocal(){
+  localStorage.setItem("mm_j", JSON.stringify({
+    SALA, DATOS, RONDAS_ABIERTAS, MISIONES, VOTO
+  }));
+}
+function cargarLocal(){
+  try {
+    const s = JSON.parse(localStorage.getItem("mm_j"));
+    if (s && s.DATOS && s.DATOS.nombre){
+      SALA = s.SALA; DATOS = s.DATOS;
+      RONDAS_ABIERTAS = s.RONDAS_ABIERTAS || {};
+      MISIONES = s.MISIONES || {};
+      VOTO = s.VOTO || { valor:null, emitido:false, revelado:false };
+      return true;
+    }
+  } catch(e){}
+  return false;
+}
+function contarMisiones(){ return Object.values(MISIONES).filter(Boolean).length; }
+
+function enviarEstado(){
+  if (!modoOnline) return;
+  Sync.actualizarJugador(SALA, ID, {
+    nombre: DATOS.nombre,
+    rol: DATOS.rol,
+    puntosMisiones: contarMisiones(),
+    voto: VOTO.emitido ? VOTO.valor : null,
+    votoRevelado: !!VOTO.revelado,
+    otroCulpable: DATOS.otroCulpable || null
+  });
+}
+
+/* ===================== Registro ===================== */
+function llenarDropdown(){
+  const sel = $("nombre");
+  GAME_DATA.personajes.forEach(p => {
+    const o = document.createElement("option");
+    o.value = p.nombre; o.textContent = p.nombre;
+    sel.appendChild(o);
+  });
+}
+
+function registrar(){
+  const sala = ($("sala").value || SALA_DEFAULT).trim().toUpperCase();
+  const nombre = $("nombre").value;
+  const numero = parseInt($("numero").value, 10);
+  if (!nombre){ alert("Elige tu nombre de la lista."); return; }
+  if (!numero || numero < 1 || numero > 30){ alert("Escribe tu número (del 1 al 30)."); return; }
+
+  SALA = sala;
+  DATOS = { nombre, numero, rol: rolDe(nombre, numero) };
+  guardarLocal();
+  enviarEstado();
+  render();
+  subscribir();
+}
+
+let suscrito = false;
+function subscribir(){
+  if (!modoOnline || suscrito) return;
+  const sala = SALA || SALA_DEFAULT;
+  suscrito = true;
+  Sync.onMeta(sala, function(meta){
+    // El anfitrión reinició la partida: limpia este teléfono.
+    if (meta && meta.resetAt){
+      const visto = localStorage.getItem("mm_reset_seen");
+      if (String(meta.resetAt) !== String(visto)){
+        localStorage.setItem("mm_reset_seen", String(meta.resetAt));
+        if (localStorage.getItem("mm_j")){
+          localStorage.removeItem("mm_j");
+          location.reload();
+          return;
+        }
+      }
+    }
+    META = meta;
+    if (DATOS.nombre){ renderRondas(); renderZonaFase(); }
+  });
+  Sync.onJugador(sala, ID, function(nodo){
+    if (nodo && typeof nodo.total !== "undefined"){
+      miTotal = nodo.total;
+      miDesglose = nodo.desglose || "";
+      renderMiPuntaje();
+    }
+  });
+}
+
+function reiniciar(){
+  if (!confirm("¿Borrar tus datos y registrarte de nuevo?")) return;
+  localStorage.removeItem("mm_j");
+  location.reload();
+}
+
+/* ===================== Render del personaje ===================== */
+function render(){
+  $("registro").style.display = "none";
+  const rol = DATOS.rol;
+  const info = GAME_DATA.rolesInfo[rol];
+  const per = personajePorNombre(DATOS.nombre) || {};
+  const cont = $("personaje");
+
+  let html = "";
+
+  // --- Carta principal ---
+  html += `<div class="card aparece">
+    <div class="tag-numero">N.º ${DATOS.numero}</div>
+    <div><span class="badge ${rol}">${info.badge}</span></div>
+    <h2>${per.nombre}</h2>
+    <p class="small">${per.parentesco || ""}</p>
+    <div class="secreto"><strong>Tu motivo:</strong> ${per.motivo || ""}</div>
+    <p>${info.intro}</p>
+    <h3>🤫 Tu situación</h3>
+    <div class="${rol==='peps'||rol==='complice'?'peligro':'secreto'}">${info.secreto}</div>
+    <h3>🎭 Cómo actuar</h3>
+    <div class="como-actuar">${info.comoActuar}</div>`;
+
+  if (per.pista){
+    html += `<h3>👀 Lo que tú sabes</h3><div class="pista">${per.pista}</div>`;
+  }
+  html += `</div>`;
+
+  // --- Confesión de El Peps (solo se "usa" al final) ---
+  if (rol === "peps"){
+    html += `<div class="card aparece">
+      <h3>🎤 Tu confesión (para el final)</h3>
+      <div class="secreto">Cuando el anfitrión revele la verdad, ponte de pie y di:<br><br><em>"${GAME_DATA.confesionPeps}"</em></div>
+    </div>`;
+  }
+
+  // --- Contador de puntos ---
+  html += `<div class="contador-puntos" id="contador">⭐ Puntos de misiones: ${contarMisiones()}</div>`;
+
+  // --- Misiones por ronda ---
+  html += `<div class="card aparece"><h2>🎯 Tus misiones</h2>
+    <p class="small">Cumple cada misión para ganar puntos. Tócala para marcarla. Cada ronda se abre con la CLAVE que aparece en la pantalla central.</p>
+    <div id="rondas"></div></div>`;
+
+  // --- Zona dinámica (votación / final) ---
+  html += `<div id="zona-fase"></div>`;
+
+  // --- Reiniciar ---
+  html += `<button class="fantasma" onclick="reiniciar()">↩️ No soy yo / reiniciar</button>`;
+
+  cont.innerHTML = html;
+  renderRondas();
+  renderZonaFase();
+}
+
+// Una ronda está abierta si el anfitrión ya llegó a ella (meta.ronda)
+// o si se abrió a mano en modo prueba.
+function rondaAbierta(n){
+  if (RONDAS_ABIERTAS[n]) return true;
+  return !!(META && typeof META.ronda === "number" && META.ronda >= n);
+}
+
+function renderRondas(){
+  const cont = $("rondas");
+  if (!cont) return;
+  let html = "";
+  GAME_DATA.rondas.forEach((ronda, i) => {
+    const n = ronda.numero;
+    const abierta = rondaAbierta(n);
+    if (!abierta){
+      html += `<div class="card" style="margin:10px 0; background:#f3e7c8;">
+        <div class="candado">
+          <div class="icono">🔒</div>
+          <strong>Ronda ${n} bloqueada</strong>
+          <p class="small">Se abrirá sola cuando el anfitrión llegue a esta ronda en la pantalla central. ¡Solo espera!</p>
+          ${!modoOnline ? `<button class="fantasma" onclick="abrirRonda(${n})">(prueba) Abrir ronda ${n}</button>` : ``}
+        </div>
+      </div>`;
+    } else {
+      const misiones = (GAME_DATA.misionesPorRol[DATOS.rol] && GAME_DATA.misionesPorRol[DATOS.rol][i]) || [];
+      html += `<div class="card aparece" style="margin:10px 0;">
+        <span class="badge info">RONDA ${n}</span>`;
+      // Pista oficial para detectives
+      if (DATOS.rol === "detective" && ronda.pistaOficial){
+        html += `<h3>${ronda.pistaOficial.titulo}</h3><div class="pista">${ronda.pistaOficial.texto}</div>`;
+      }
+      html += `<h3>Misiones de la ronda ${n}</h3>`;
+      misiones.forEach((m, j) => {
+        const key = "r" + n + "m" + j;
+        const hecha = MISIONES[key];
+        html += `<div class="mision ${hecha?'hecha':''}" onclick="toggleMision('${key}')">
+          <div class="check">${hecha?'✓':''}</div>
+          <div class="mision-texto">${m}</div>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+  });
+  cont.innerHTML = html;
+}
+
+// Solo se usa en modo prueba (offline) para abrir rondas a mano.
+function abrirRonda(n){
+  RONDAS_ABIERTAS[n] = true;
+  guardarLocal();
+  renderRondas();
+}
+
+function toggleMision(key){
+  MISIONES[key] = !MISIONES[key];
+  guardarLocal();
+  const c = $("contador");
+  if (c) c.textContent = "⭐ Puntos de misiones: " + contarMisiones();
+  renderRondas();
+  enviarEstado();
+}
+
+/* ===================== Votación y final ===================== */
+function renderZonaFase(){
+  const z = $("zona-fase");
+  if (!z) return;
+
+  const votacionAbierta = (META && META.votacionAbierta) || modoPruebaVotacion;
+  const revelado = (META && META.revelado) || modoPruebaFinal;
+
+  let html = "";
+
+  // ---- Votación ----
+  if (votacionAbierta){
+    if (!VOTO.emitido){
+      html += `<div class="card aparece"><h2>🗳️ ¡Hora de votar!</h2>
+        <p>¿Quién crees que se llevó el Niño Envuelto? Elige y emite tu voto. <strong>Una vez emitido no se puede cambiar.</strong></p>
+        <select id="voto-sel"><option value="">— Tu sospechoso/a —</option>${
+          GAME_DATA.personajes.filter(p=>p.nombre!==DATOS.nombre)
+            .map(p=>`<option value="${p.nombre}">${p.nombre}</option>`).join("")
+        }</select>
+        <button onclick="emitirVoto()">🔒 Emitir mi voto</button>
+      </div>`;
+    } else if (!VOTO.revelado){
+      html += `<div class="card aparece"><h2>🔒 Voto emitido</h2>
+        <p>Tu voto quedó guardado y ya no se puede cambiar. Espera a que el anfitrión diga "¡revelen!" y entonces muéstralo.</p>
+        <button onclick="revelarVoto()">👀 Revelar mi voto</button>
+      </div>`;
+    } else {
+      html += `<div class="card aparece"><h2>📣 Tu voto</h2>
+        <div class="secreto">Acusaste a: <strong>${VOTO.valor}</strong></div>
+        <p class="small">Mira la pantalla central para el conteo y la gran revelación.</p>
+      </div>`;
+    }
+  }
+
+  // ---- Final ----
+  if (revelado){
+    html += `<div class="card aparece"><h2>🎭 La verdad</h2>
+      <p>${GAME_DATA.revelacion.intro}</p>
+      <div class="peligro">${GAME_DATA.revelacion.golpe}</div>
+      <h3>🧩 ¿Y el OTRO culpable?</h3>
+      <p class="small">Tu voto contó para uno. Ahora dinos a quién crees que fue <strong>el otro</strong> (el cómplice si votaste a El Peps, o El Peps si votaste al cómplice).</p>`;
+    if (!DATOS.otroCulpable){
+      html += `<select id="otro-sel"><option value="">— El otro culpable —</option>${
+        GAME_DATA.personajes.filter(p=>p.nombre!==DATOS.nombre)
+          .map(p=>`<option value="${p.nombre}">${p.nombre}</option>`).join("")
+      }</select>
+      <button onclick="enviarOtro()">Confirmar</button>`;
+    } else {
+      html += `<div class="secreto">Tu otra apuesta: <strong>${DATOS.otroCulpable}</strong></div>`;
+    }
+    html += `<div id="mi-puntaje"></div></div>`;
+  }
+
+  z.innerHTML = html;
+  renderMiPuntaje();
+}
+
+function emitirVoto(){
+  const val = $("voto-sel").value;
+  if (!val){ alert("Elige a alguien antes de emitir."); return; }
+  if (!confirm("¿Seguro? Una vez emitido, tu voto por " + val + " NO se puede cambiar.")) return;
+  VOTO = { valor: val, emitido: true, revelado: false };
+  guardarLocal(); enviarEstado(); renderZonaFase();
+}
+function revelarVoto(){
+  VOTO.revelado = true;
+  guardarLocal(); enviarEstado(); renderZonaFase();
+}
+function enviarOtro(){
+  const val = $("otro-sel").value;
+  if (!val){ alert("Elige a alguien."); return; }
+  DATOS.otroCulpable = val;
+  guardarLocal(); enviarEstado(); renderZonaFase();
+}
+
+function renderMiPuntaje(){
+  const el = $("mi-puntaje");
+  if (!el) return;
+  if (miTotal === null){
+    el.innerHTML = `<p class="small center">⏳ Esperando el cálculo final de la pantalla central...</p>`;
+  } else {
+    el.innerHTML = `<div class="contador-puntos" style="font-size:1.5rem; margin-top:14px;">🏆 Tu puntaje final: ${miTotal}</div>
+      ${miDesglose ? `<p class="small center">${miDesglose}</p>` : ""}`;
+  }
+}
+
+/* ===================== Modo prueba (offline) ===================== */
+let modoPruebaVotacion = false;
+let modoPruebaFinal = false;
+let miTotal = null;
+let miDesglose = "";
+
+function pintarModoPrueba(){
+  // En offline no hay anfitrión que abra fases: damos botones de prueba.
+  const z = document.createElement("div");
+  z.className = "card nota-aviso";
+  z.innerHTML = `<strong>Modo prueba (sin conexión).</strong> Normalmente el anfitrión abre estas fases desde la pantalla central. Para probar tú solo:
+    <div class="botones-fila" style="margin-top:8px;">
+      <button class="fantasma" onclick="modoPruebaVotacion=true;renderZonaFase()">Abrir votación</button>
+      <button class="fantasma" onclick="modoPruebaFinal=true;renderZonaFase()">Abrir final</button>
+    </div>`;
+  $("personaje").appendChild(z);
+}
+
+/* ===================== Arranque ===================== */
+function arrancar(){
+  llenarDropdown();
+  modoOnline = (Sync.init() === "online");
+  ID = Sync.idDispositivo();
+
+  $("estado").innerHTML = modoOnline
+    ? `<span class="estado-conexion online">● Conectado en vivo</span>`
+    : `<span class="estado-conexion offline">● Sin conexión (modo prueba)</span>`;
+
+  $("sala").value = (typeof SALA_DEFAULT !== "undefined") ? SALA_DEFAULT : "FIESTA";
+
+  const hay = cargarLocal();
+  if (hay){
+    render();
+    enviarEstado();
+    subscribir();
+    if (!modoOnline) pintarModoPrueba();
+  }
+}
+
+window.onload = arrancar;
+</script>
+</body>
+</html>

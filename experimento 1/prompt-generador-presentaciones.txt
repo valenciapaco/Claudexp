@@ -1,0 +1,75 @@
+Crea un artefacto HTML interactivo para generar presentaciones de slides profesionales con las siguientes características:
+
+## DISEÑO Y ESTILO:
+- Tema futurista con gradientes rosa/morado (#ec4899, #d946ef, #a855f7, #6b21a8)
+- Fondo con gradiente dinámico que cambia según el slide actual
+- Tipografías: 'Orbitron' para títulos y 'Rajdhani' para texto
+- Cards y elementos con efectos glassmorphism (backdrop-filter blur)
+- Bordes con glow effect y sombras de neón
+- Scrollbar vertical personalizado con gradiente rosa/morado
+- Animaciones suaves en transiciones y hover effects
+
+## ESTRUCTURA DE SLIDES:
+Cada slide debe tener:
+- Contenedor .content con scroll vertical automático
+- Padding y border-radius de 25px
+- Sombras múltiples con colores rosa/morado
+- Max-height: calc(100vh - 180px) para ajustarse a la ventana
+
+## COMPONENTES DISPONIBLES:
+1. **Título principal**: H1 con gradiente animado en el texto
+2. **Subtítulos**: H2 con borde inferior degradado
+3. **Grid de tarjetas**: Display grid con minmax(250px, 1fr)
+4. **Dos columnas**: Para comparaciones (Oportunidades vs Riesgos)
+5. **Lista de pasos numerados**: Con círculos numerados en gradiente
+6. **Checklist**: Con checkmarks verdes
+7. **Matriz 2x2**: Para priorización (Alto/Bajo impacto vs complejidad)
+8. **Timeline**: Para planes temporales
+9. **Tarjetas de herramientas**: Grid de opciones
+10. **Casos de éxito**: Con formato de caso de estudio
+11. **Sección ROI**: Dos columnas (costos vs beneficios)
+12. **Recursos**: Grid de secciones con listas
+13. **Key takeaways**: Números grandes con mensajes
+
+## NAVEGACIÓN:
+- Botones "Anterior" y "Siguiente" en la parte inferior
+- Contador de slides (ej: "3 / 17")
+- Barra de progreso horizontal en la parte inferior
+- Soporte para teclado: flechas, espacio, Home, End
+- Soporte para touch/swipe en móviles
+- Los botones deben deshabilitarse en el primer y último slide
+
+## EFECTOS ESPECIALES:
+- Cards con efecto de brillo que pasa al hacer hover
+- Transform translateY y scale en hover
+- Gradiente de fondo que evoluciona con cada slide (de rosa claro a morado oscuro)
+- Transiciones suaves (0.5s ease-in-out)
+- Text-shadow y box-shadow con colores neón
+
+## FUNCIONALIDAD:
+- Todo en un solo archivo HTML (CSS y JS incluidos)
+- Clase SlidePresentation en JavaScript para manejar la navegación
+- Método updateBackgroundGradient() que cambia el fondo según el progreso
+- Scroll automático al top cuando cambias de slide
+- Función de fullscreen con tecla F
+- Click en el contador para saltar a un slide específico
+
+## RESPONSIVE:
+- Media queries para tablets (max-width: 768px)
+- Media queries para móviles (max-width: 480px)
+- Grid de 1 columna en pantallas pequeñas
+- Fuentes más pequeñas en móvil
+
+## INSTRUCCIONES DE USO:
+Genera el código HTML completo con:
+1. Una slide de portada con título principal y subtítulo
+2. 3-4 slides de ejemplo mostrando diferentes componentes (grid de cards, dos columnas, pasos numerados, matriz)
+3. Una slide de cierre con call-to-action
+
+El usuario debe poder:
+- Copiar el código y abrirlo directamente en el navegador
+- Duplicar slides fácilmente copiando el bloque <div class="slide">
+- Agregar su propio contenido manteniendo las clases CSS
+- Ajustar el número total de slides automáticamente
+
+IMPORTANTE: Incluye comentarios en el código explicando cómo agregar nuevos slides y cómo usar cada componente.

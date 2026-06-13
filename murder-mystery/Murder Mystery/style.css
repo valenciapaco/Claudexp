@@ -1,0 +1,262 @@
+/* ============================================================
+   EL MISTERIO DEL NIÑO ENVUELTO — estilo fiesta setentera
+   Paleta: mostaza, naranja quemado, café, aguacate, crema.
+   ============================================================ */
+
+:root {
+  --mostaza:   #E8A317;
+  --naranja:   #D2552B;
+  --naranja-2: #F08A3C;
+  --cafe:      #4A2C12;
+  --cafe-2:    #6E4423;
+  --aguacate:  #7A8B3C;
+  --crema:     #F6E7C8;
+  --crema-2:   #FBF4E2;
+  --rojo:      #B53A2B;
+  --verde-ok:  #4C7A34;
+  --sombra:    rgba(74, 44, 18, 0.22);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Trebuchet MS", "Avenir", "Segoe UI", sans-serif;
+  color: var(--cafe);
+  background:
+    radial-gradient(circle at 50% -10%, rgba(232,163,23,0.35), transparent 45%),
+    repeating-linear-gradient(45deg, #f3dca8 0 28px, #f0d39a 28px 56px);
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+.bola-disco {
+  position: fixed;
+  top: -40px; left: 50%;
+  width: 90px; height: 90px;
+  margin-left: -45px;
+  border-radius: 50%;
+  background-color: #8a98ab;
+  background-image:
+    radial-gradient(circle at 30% 30%, #fff, #aab6c6 45%, #6c7d94 75%),
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.5) 0 3px, transparent 3px 9px),
+    repeating-linear-gradient(90deg, rgba(0,0,0,0.12) 0 3px, transparent 3px 9px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.3);
+  opacity: 0.85;
+  z-index: 0;
+  pointer-events: none;
+  animation: brillo 4s ease-in-out infinite;
+}
+@keyframes brillo { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.4); } }
+
+.container {
+  position: relative;
+  z-index: 1;
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 80px 18px 60px;
+}
+
+.header-retro { text-align: center; margin-bottom: 22px; }
+.emoji-grande { font-size: 2.6rem; line-height: 1; }
+.header-retro h1 {
+  font-size: 2rem;
+  margin: 8px 0 4px;
+  color: var(--naranja);
+  text-shadow: 2px 2px 0 var(--mostaza), 4px 4px 0 var(--cafe);
+  letter-spacing: 0.5px;
+}
+.tagline { margin: 0; font-weight: 700; color: var(--cafe-2); }
+
+/* ---------- Tarjetas ---------- */
+.card {
+  background: var(--crema-2);
+  border: 3px solid var(--cafe);
+  border-radius: 18px;
+  padding: 20px;
+  margin: 16px 0;
+  box-shadow: 6px 6px 0 var(--sombra);
+}
+.card h2 { margin: 0 0 10px; color: var(--naranja); }
+.card h3 { margin: 16px 0 8px; color: var(--cafe); }
+.card.center { text-align: center; }
+.card.small { font-size: 0.92rem; background: var(--mostaza); border-color: var(--cafe); }
+
+/* ---------- Botones ---------- */
+.btn, button {
+  display: inline-block;
+  font-family: inherit;
+  font-size: 1.05rem;
+  font-weight: 800;
+  text-decoration: none;
+  text-align: center;
+  cursor: pointer;
+  color: var(--crema-2);
+  background: var(--naranja);
+  border: 3px solid var(--cafe);
+  border-radius: 14px;
+  padding: 13px 18px;
+  margin: 8px 0;
+  width: 100%;
+  box-shadow: 4px 4px 0 var(--sombra);
+  transition: transform 0.05s ease, filter 0.15s ease;
+}
+.btn:hover, button:hover { filter: brightness(1.07); }
+.btn:active, button:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--sombra); }
+.btn-alt, button.secundario { background: var(--aguacate); }
+button.fantasma { background: var(--crema); color: var(--cafe); }
+button:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(0.4); }
+.botones-fila { display: flex; gap: 10px; flex-wrap: wrap; }
+.botones-fila button, .botones-fila .btn { width: auto; flex: 1 1 auto; }
+
+/* ---------- Formularios ---------- */
+label { display: block; font-weight: 800; margin: 12px 0 4px; color: var(--cafe-2); }
+input, select {
+  width: 100%;
+  font-family: inherit;
+  font-size: 1.05rem;
+  padding: 12px;
+  border: 3px solid var(--cafe);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--cafe);
+}
+.small { font-size: 0.88rem; color: var(--cafe-2); }
+.center { text-align: center; }
+
+/* ---------- Badges de rol ---------- */
+.badge {
+  display: inline-block;
+  font-weight: 900;
+  font-size: 0.95rem;
+  padding: 8px 14px;
+  border-radius: 30px;
+  border: 3px solid var(--cafe);
+  margin: 6px 0;
+  letter-spacing: 0.4px;
+}
+.badge.peps       { background: var(--mostaza); color: var(--cafe); }
+.badge.complice   { background: var(--naranja);  color: #fff; }
+.badge.detective  { background: var(--aguacate); color: #fff; }
+.badge.sospechoso { background: var(--crema); color: var(--cafe); }
+.badge.info       { background: var(--cafe); color: var(--crema-2); }
+
+.tag-numero {
+  float: right;
+  font-weight: 900;
+  background: var(--cafe);
+  color: var(--crema-2);
+  border-radius: 10px;
+  padding: 4px 10px;
+  font-size: 0.9rem;
+}
+
+/* ---------- Bloques de contenido ---------- */
+.secreto { background: #fff6df; border-left: 6px solid var(--mostaza); padding: 12px; border-radius: 8px; margin: 8px 0; }
+.pista   { background: #eef0dd; border-left: 6px solid var(--aguacate); padding: 12px; border-radius: 8px; margin: 8px 0; }
+.peligro { background: #fbe2da; border-left: 6px solid var(--rojo); padding: 12px; border-radius: 8px; margin: 8px 0; }
+.como-actuar { background: #fff; border: 2px dashed var(--naranja); padding: 12px; border-radius: 10px; margin: 8px 0; }
+
+ul.lista { padding-left: 22px; }
+ul.lista li { margin: 6px 0; }
+
+/* ---------- Misiones (checklist) ---------- */
+.mision {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #fff;
+  border: 2px solid var(--cafe);
+  border-radius: 12px;
+  padding: 12px;
+  margin: 10px 0;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.mision:hover { background: #fffaf0; }
+.mision.hecha { background: #e7f0dd; border-color: var(--verde-ok); }
+.mision.hecha .mision-texto { text-decoration: line-through; opacity: 0.7; }
+.mision .check {
+  flex: 0 0 28px;
+  width: 28px; height: 28px;
+  border: 3px solid var(--cafe);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 1.1rem;
+  background: #fff;
+}
+.mision.hecha .check { background: var(--verde-ok); color: #fff; border-color: var(--verde-ok); }
+.mision-texto { flex: 1; font-weight: 600; }
+
+.contador-puntos {
+  text-align: center;
+  font-weight: 900;
+  font-size: 1.2rem;
+  background: var(--mostaza);
+  border: 3px solid var(--cafe);
+  border-radius: 14px;
+  padding: 10px;
+  margin: 12px 0;
+}
+
+/* ---------- Candado de ronda ---------- */
+.candado { text-align: center; padding: 14px; }
+.candado .icono { font-size: 2.2rem; }
+
+/* ---------- Cronómetro ---------- */
+.timer { font-size: 2.4rem; font-weight: 900; text-align: center; color: var(--naranja); margin: 8px 0; }
+
+/* ---------- Tabla de posiciones ---------- */
+.tabla-pos { width: 100%; border-collapse: collapse; margin: 10px 0; }
+.tabla-pos th, .tabla-pos td { padding: 10px 12px; text-align: left; border-bottom: 2px solid var(--crema); }
+.tabla-pos th { background: var(--cafe); color: var(--crema-2); }
+.tabla-pos tr:nth-child(even) td { background: #fff8e8; }
+.tabla-pos .pos { font-weight: 900; color: var(--naranja); width: 48px; }
+.tabla-pos .pts { font-weight: 900; text-align: right; }
+.lider td { background: var(--mostaza) !important; font-weight: 800; }
+
+/* ---------- Estado de conexión ---------- */
+.estado-conexion {
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 6px 10px;
+  border-radius: 20px;
+  display: inline-block;
+  margin: 6px auto;
+}
+.estado-conexion.online  { background: #e7f0dd; color: var(--verde-ok); border: 2px solid var(--verde-ok); }
+.estado-conexion.offline { background: #fbe2da; color: var(--rojo); border: 2px solid var(--rojo); }
+
+.nota-aviso { background: #fff3cf; border: 2px solid var(--mostaza); border-radius: 10px; padding: 10px; margin: 10px 0; font-size: 0.9rem; }
+
+/* ---------- Pantalla central (TV): más grande ---------- */
+.pantalla-central .container { max-width: 960px; }
+.pantalla-central { font-size: 20px; }
+.pantalla-central .header-retro h1 { font-size: 2.6rem; }
+.pantalla-central .card { padding: 30px; }
+.pantalla-central .card h2 { font-size: 2rem; }
+.clave-grande {
+  font-size: 3rem;
+  font-weight: 900;
+  letter-spacing: 6px;
+  color: var(--cafe);
+  background: var(--mostaza);
+  border: 4px dashed var(--cafe);
+  border-radius: 16px;
+  padding: 16px 8px;
+  margin: 14px 0;
+  text-align: center;
+}
+.progreso { text-align: center; font-weight: 800; color: var(--cafe-2); margin-top: 8px; }
+.fase-nav { display: flex; gap: 12px; margin-top: 8px; }
+.fase-nav button { flex: 1; }
+
+/* ---------- Animaciones suaves ---------- */
+.aparece { animation: aparece 0.4s ease; }
+@keyframes aparece { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 480px) {
+  .header-retro h1 { font-size: 1.6rem; }
+  .container { padding-top: 70px; }
+}

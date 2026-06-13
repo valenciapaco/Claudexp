@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pantalla Central — El Misterio del Niño Envuelto</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="pantalla-central">
+<div class="bola-disco"></div>
+<div class="container">
+
+  <div class="header-retro">
+    <div class="emoji-grande">🪩🎂🕵️</div>
+    <h1>El Misterio del Niño Envuelto</h1>
+    <p class="tagline">Pantalla central · guía del anfitrión</p>
+  </div>
+
+  <div id="estado" class="center"></div>
+  <div id="escena"></div>
+
+  <div class="fase-nav">
+    <button class="secundario" onclick="anterior()">⬅️ Anterior</button>
+    <button onclick="siguiente()">Siguiente ➡️</button>
+  </div>
+  <div class="progreso" id="progreso"></div>
+  <button class="fantasma" onclick="reiniciarTodo()" style="margin-top:14px;">🔁 Reiniciar la partida</button>
+
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/11.0.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.0/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="sync.js"></script>
+<script src="data.js"></script>
+<script>
+/* ===================== Estado ===================== */
+let SALA = localStorage.getItem("mm_sala") || ((typeof SALA_DEFAULT !== "undefined") ? SALA_DEFAULT : "FIESTA");
+let salaLista = !!localStorage.getItem("mm_sala");
+let modoOnline = false;
+let JUGADORES = {};         // { id: {nombre, rol, puntosMisiones, voto, ...} }
+let escenaActual = parseInt(localStorage.getItem("mm_escena") || "0", 10);
+let preguntaActual = null;
+let finalCalculado = false;
+
+/* ===================== Construcción de escenas ===================== */
+const escenas = [];
+escenas.push({ tipo: "setup" });
+GAME_DATA.narracion.forEach((n, i) => escenas.push({ tipo: "narracion", i }));
+escenas.push({ tipo: "reparto" });
+for (let r = 0; r < GAME_DATA.rondas.length; r++) {
+  escenas.push({ tipo: "ronda", r });
+  escenas.push({ tipo: "interrogatorio", r });
+  escenas.push({ tipo: "posiciones", r });
+}
+escenas.push({ tipo: "votacion" });
+escenas.push({ tipo: "revelacion" });
+escenas.push({ tipo: "final" });
+
+/* ===================== Utilidades ===================== */
+function $(id){ return document.getElementById(id); }
+function lista(arr){ return arr.map(x=>`<li>${x}</li>`).join(""); }
+function jugadoresArray(){ return Object.values(JUGADORES || {}); }
+
+function nombreComplice(){
+  const c = jugadoresArray().find(j => j.rol === "complice");
+  return c ? c.nombre : null;
+}
+function nombrePeps(){ return GAME_DATA.peps; }
+
+/* ===================== Navegación ===================== */
+function guardarEscena(){ localStorage.setItem("mm_escena", escenaActual); }
+function siguiente(){
+  if (escenas[escenaActual].tipo === "setup" && !salaLista){
+    alert("Primero crea o abre una sala con su nombre.");
+    return;
+  }
+  if (escenaActual < escenas.length-1){ escenaActual++; guardarEscena(); render(); }
+}
+function anterior(){ if (escenaActual > 0){ escenaActual--; guardarEscena(); render(); } }
+
+/* ===================== Meta (controla los teléfonos) ===================== */
+function aplicarMeta(esc){
+  if (!modoOnline || !salaLista) return;
+  const meta = { fase: escenaActual, ronda: null, votacionAbierta: false, revelado: false };
+  if (esc.tipo === "ronda" || esc.tipo === "interrogatorio" || esc.tipo === "posiciones") meta.ronda = (esc.r||0)+1;
+  if (esc.tipo === "votacion") meta.votacionAbierta = true;
+  if (esc.tipo === "revelacion" || esc.tipo === "final"){ meta.revelado = true; meta.votacionAbierta = true; }
+  Sync.setMeta(SALA, meta);
+}
+
+/* ===================== Cronómetro ===================== */
+const timers = {};
+function iniciarTimer(idx, min){
+  if (!timers[idx]) timers[idx] = { restante: min*60, intervalo:null, corriendo:false };
+  const t = timers[idx];
+  if (t.corriendo) return;
+  t.corriendo = true;
+  t.intervalo = setInterval(()=>{
+    t.restante--;
+    pintarTimer(idx);
+    if (t.restante <= 0){ clearInterval(t.intervalo); t.corriendo=false; }
+  }, 1000);
+}
+function pausarTimer(idx){ const t=timers[idx]; if (t&&t.corriendo){ clearInterval(t.intervalo); t.corriendo=false; } }
+function reiniciarTimer(idx, min){ pausarTimer(idx); timers[idx]={restante:min*60,intervalo:null,corriendo:false}; pintarTimer(idx); }
+function pintarTimer(idx){
+  const el = $("timer-"+idx); if (!el) return;
+  const t = timers[idx]; const m = Math.floor(Math.max(t.restante,0)/60); const s = Math.max(t.restante,0)%60;
+  el.textContent = t.restante<=0 ? "¡TIEMPO! 🎉" : `${m}:${s.toString().padStart(2,"0")}`;
+}
+
+/* ===================== Render ===================== */
+function render(){
+  const esc = escenas[escenaActual];
+  aplicarMeta(esc);
+  const cont = $("escena");
+  let html = "";
+
+  switch(esc.tipo){
+    case "setup": {
+      if (!salaLista){
+        html = `<div class="card center aparece">
+          <h2>🎉 Nueva partida</h2>
+          <p>Ponle un nombre a esta partida. Con ese nombre se crea una sala nueva, y es el código que tus invitados van a teclear en su teléfono.</p>
+          <input type="text" id="nombre-sala" placeholder="${SALA}" value="${SALA}" style="text-transform:uppercase;">
+          <button onclick="crearOusarSala()">🎬 Crear / abrir esta sala</button>
+          ${!modoOnline ? `<div class="nota-aviso">Estás en <strong>modo prueba</strong> (Firebase no configurado): puedes recorrer la presentación, pero no habrá invitados conectados ni puntajes automáticos.</div>`:""}
+        </div>`;
+      } else {
+        const n = jugadoresArray().length;
+        html = `<div class="card center aparece">
+          <h2>🎉 Preparativos — partida "${SALA}"</h2>
+          <p>Pídele a cada invitado que abra el juego en su teléfono y entre con este código:</p>
+          <div class="clave-grande">${SALA}</div>
+          <p class="small">Reparte a cada quien su <strong>número secreto</strong> en voz alta (del 1 al 30). Solo tú sabes qué significa cada número (ver hoja de control en la guía).</p>
+          <div class="contador-puntos">📱 Invitados conectados: ${n}</div>
+          <button class="fantasma" onclick="cambiarSala()">✏️ Cambiar nombre de la partida</button>
+          ${!modoOnline ? `<div class="nota-aviso">Modo prueba (sin Firebase): no verás invitados conectados ni puntajes automáticos.</div>`:""}
+          <p>Cuando todos estén dentro, dale a <strong>Siguiente</strong> y empieza a narrar.</p>
+        </div>`;
+      }
+      break;
+    }
+    case "narracion": {
+      const nar = GAME_DATA.narracion[esc.i];
+      html = `<div class="card center aparece">
+        <span class="badge info">Narración ${esc.i+1} / ${GAME_DATA.narracion.length}</span>
+        <h2>${nar.titulo}</h2>
+        <p style="font-size:1.15em;">${nar.texto}</p>
+        ${esc.i===3 ? `<div class="nota-aviso">🎬 Pídele a <strong>Teté</strong> que dé el grito de alarma en voz alta. ¡Que actúe el shock!</div>`:""}
+      </div>`;
+      break;
+    }
+    case "reparto":
+      html = `<div class="card center aparece">
+        <h2>📱 Lean su personaje</h2>
+        <p>Cada invitado abre su teléfono y lee EN SILENCIO:</p>
+        <ul class="lista" style="display:inline-block;text-align:left;">
+          <li>Su rol secreto y su motivo contra El Peps</li>
+          <li>Su situación y cómo actuar</li>
+          <li>Lo que sabe (su pista)</li>
+        </ul>
+        <p class="small">Dales 2-3 minutos. Recuérdales: ¡nadie enseña su pantalla!</p>
+      </div>`;
+      break;
+
+    case "ronda": {
+      const ronda = GAME_DATA.rondas[esc.r];
+      if (!timers[escenaActual]) timers[escenaActual] = { restante: ronda.duracionMin*60, intervalo:null, corriendo:false };
+      const t = timers[escenaActual]; const m=Math.floor(t.restante/60); const s=t.restante%60;
+      html = `<div class="card center aparece">
+        <span class="badge complice">RONDA ${ronda.numero} DE ${GAME_DATA.rondas.length}</span>
+        <h2>🔓 Ronda ${ronda.numero}</h2>
+        <p class="small">Las misiones de esta ronda ya se abrieron solas en los teléfonos. Anuncia: «¡Ronda ${ronda.numero}! Revisen sus nuevas misiones.»</p>
+        <h3>${ronda.pistaGeneral.titulo}</h3>
+        <div class="pista" style="text-align:left;">${ronda.pistaGeneral.texto}</div>
+        <div class="timer" id="timer-${escenaActual}">${m}:${s.toString().padStart(2,"0")}</div>
+        <div class="botones-fila">
+          <button onclick="iniciarTimer(${escenaActual},${ronda.duracionMin})">▶️ Iniciar</button>
+          <button class="secundario" onclick="pausarTimer(${escenaActual})">⏸️ Pausar</button>
+          <button class="fantasma" onclick="reiniciarTimer(${escenaActual},${ronda.duracionMin})">🔄 Reiniciar</button>
+        </div>
+      </div>`;
+      break;
+    }
+
+    case "interrogatorio":
+      html = `<div class="card center aparece">
+        <span class="badge detective">INTERROGATORIO PÚBLICO</span>
+        <h2>🎙️ ¡Detectives, al frente!</h2>
+        <p>Que un detective llame a un sospechoso. Saca una pregunta al azar y léela fuerte. ¡Todos escuchan la respuesta!</p>
+        <div class="secreto" id="pregunta" style="font-size:1.2em;min-height:50px;">
+          ${preguntaActual!==null ? GAME_DATA.preguntasPublicas[preguntaActual] : "(Aún no hay pregunta)"}
+        </div>
+        <button onclick="preguntaAleatoria()">🎲 Pregunta al azar</button>
+      </div>`;
+      break;
+
+    case "posiciones":
+      html = `<div class="card aparece">
+        <h2 class="center">📊 Tabla de posiciones — fin de la ronda ${esc.r+1}</h2>
+        ${tablaPosicionesHTML("puntosMisiones")}
+        <p class="small center">Puntos por misiones cumplidas hasta ahora. ¡Aún pueden remontar!</p>
+      </div>`;
+      break;
+
+    case "votacion":
+      html = `<div class="card center aparece">
+        <h2>🗳️ Votación final</h2>
+        <p>En sus teléfonos ya pueden <strong>emitir su voto</strong> (no se puede cambiar). Cuando todos hayan votado, di <strong>"¡revelen!"</strong> para que muestren su voto.</p>
+        ${conteoVotosHTML()}
+      </div>`;
+      break;
+
+    case "revelacion":
+      html = `<div class="card center aparece">
+        <span class="badge peps">REVELACIÓN</span>
+        <h2>${GAME_DATA.revelacion.titulo}</h2>
+        <p style="font-size:1.1em;">${GAME_DATA.revelacion.intro}</p>
+        <div class="peligro" style="font-size:1.15em;">${GAME_DATA.revelacion.golpe}</div>
+        <p>${GAME_DATA.revelacion.cierre}</p>
+        <div class="nota-aviso">🎤 El cálculo final ya se desbloqueó solo en los teléfonos. Pasa a Siguiente para el ranking automático.</div>
+      </div>`;
+      break;
+
+    case "final":
+      html = `<div class="card aparece">
+        <h2 class="center">🏆 Resultados finales</h2>
+        ${finalHTML()}
+      </div>`;
+      break;
+  }
+
+  cont.innerHTML = html;
+  $("progreso").textContent = `Escena ${escenaActual+1} de ${escenas.length}`;
+  if (escenas[escenaActual].tipo === "final" && modoOnline && !finalCalculado) calcularFinal();
+}
+
+/* ===================== Tablas y conteos ===================== */
+function tablaPosicionesHTML(campo){
+  const arr = jugadoresArray().filter(j=>j.nombre);
+  if (!modoOnline) return `<div class="nota-aviso">La tabla de posiciones necesita Firebase conectado.</div>`;
+  if (arr.length === 0) return `<p class="center">Aún no hay jugadores conectados.</p>`;
+  arr.sort((a,b)=>(b[campo]||0)-(a[campo]||0));
+  let filas = arr.map((j,i)=>`<tr class="${i===0?'lider':''}">
+    <td class="pos">${i+1}</td><td>${j.nombre}</td><td class="pts">${j[campo]||0}</td></tr>`).join("");
+  return `<table class="tabla-pos"><thead><tr><th>#</th><th>Jugador</th><th class="pts">Pts</th></tr></thead><tbody>${filas}</tbody></table>`;
+}
+
+function conteoVotosHTML(){
+  if (!modoOnline) return `<div class="nota-aviso">El conteo en vivo necesita Firebase conectado.</div>`;
+  const arr = jugadoresArray();
+  const votaron = arr.filter(j=>j.voto).length;
+  // distribución
+  const dist = {};
+  arr.forEach(j=>{ if (j.voto){ dist[j.voto]=(dist[j.voto]||0)+1; } });
+  const orden = Object.entries(dist).sort((a,b)=>b[1]-a[1]);
+  let filas = orden.map(([n,c])=>`<tr><td>${n}</td><td class="pts">${c}</td></tr>`).join("");
+  return `<div class="contador-puntos">🗳️ Han votado: ${votaron} de ${arr.length}</div>
+    ${orden.length ? `<table class="tabla-pos"><thead><tr><th>Acusado/a</th><th class="pts">Votos</th></tr></thead><tbody>${filas}</tbody></table>` : ""}`;
+}
+
+/* ===================== Cálculo final ===================== */
+function calcularFinal(){
+  const arr = jugadoresArray().filter(j=>j.nombre);
+  if (arr.length === 0) return;
+  const P = GAME_DATA.puntos;
+  const peps = nombrePeps();
+  const compl = nombreComplice();
+
+  const votantes = arr.filter(j=>j.voto).length || 1;
+  const votosA = {};
+  arr.forEach(j=>{ if (j.voto) votosA[j.voto]=(votosA[j.voto]||0)+1; });
+  const fracPeps  = (votosA[peps]||0)/votantes;
+  const fracCompl = compl ? (votosA[compl]||0)/votantes : 1;
+
+  arr.forEach(j=>{
+    let total = j.puntosMisiones || 0;
+    const partes = [`Misiones: ${j.puntosMisiones||0}`];
+
+    // Voto principal
+    if (j.voto === peps){ total += P.votoPeps; partes.push(`Votó a El Peps: +${P.votoPeps}`); }
+    else if (compl && j.voto === compl){ total += P.votoComplice; partes.push(`Votó al cómplice: +${P.votoComplice}`); }
+
+    // El otro culpable
+    const culpables = [peps]; if (compl) culpables.push(compl);
+    if (j.otroCulpable && culpables.indexOf(j.otroCulpable)!==-1 && j.otroCulpable !== j.voto){
+      total += P.otroCulpable; partes.push(`Atinó al otro culpable: +${P.otroCulpable}`);
+    }
+
+    // Bonus de rol
+    if (j.nombre === peps && fracPeps < P.umbralEvasion){ total += P.evasionPeps; partes.push(`Maestro del Engaño: +${P.evasionPeps}`); }
+    if (j.rol === "complice" && fracCompl < P.umbralEvasion){ total += P.evasionComplice; partes.push(`Sombra Perfecta: +${P.evasionComplice}`); }
+    if (j.rol === "detective" && (j.voto === peps || (compl && j.voto === compl))){ total += P.detectiveAcierto; partes.push(`Detective certero: +${P.detectiveAcierto}`); }
+
+    j._total = total;
+    j._desglose = partes.join(" · ");
+  });
+
+  // Escribir de vuelta a cada nodo
+  Object.entries(JUGADORES).forEach(([id,j])=>{
+    if (j && j.nombre){
+      Sync.actualizarJugador(SALA, id, { total: j._total, desglose: j._desglose });
+    }
+  });
+  finalCalculado = true;
+  render();
+}
+
+function finalHTML(){
+  if (!modoOnline) return `<div class="nota-aviso">El cálculo automático necesita Firebase conectado. Sin él, cada quien suma sus puntos en su teléfono.</div>`;
+  const arr = jugadoresArray().filter(j=>j.nombre);
+  if (arr.length === 0) return `<p class="center">No hay jugadores conectados.</p>`;
+  const peps = nombrePeps();
+  const compl = nombreComplice() || "(nadie tomó el rol de cómplice)";
+  arr.sort((a,b)=>(b._total||0)-(a._total||0));
+  let filas = arr.map((j,i)=>`<tr class="${i===0?'lider':''}">
+    <td class="pos">${i===0?'👑':i+1}</td><td>${j.nombre}</td><td class="pts">${j._total!=null?j._total:'…'}</td></tr>`).join("");
+  return `<div class="secreto center"><strong>El culpable real:</strong> ${peps} 🎂 &nbsp;|&nbsp; <strong>El cómplice:</strong> ${compl} 🤝</div>
+    <table class="tabla-pos"><thead><tr><th>#</th><th>Jugador</th><th class="pts">Total</th></tr></thead><tbody>${filas}</tbody></table>
+    <p class="center" style="font-size:1.2em;">🏆 ¡Ganador: <strong>${arr[0].nombre}</strong>! Le toca la primera rebanada del pastel de verdad... porque Niño Envuelto, ya saben, ya no quedó. 🎂</p>
+    <button class="fantasma" onclick="finalCalculado=false;calcularFinal()">🔄 Recalcular</button>`;
+}
+
+/* ===================== Interacciones ===================== */
+function preguntaAleatoria(){
+  let n;
+  do { n = Math.floor(Math.random()*GAME_DATA.preguntasPublicas.length); }
+  while (n===preguntaActual && GAME_DATA.preguntasPublicas.length>1);
+  preguntaActual = n;
+  const el = $("pregunta"); if (el) el.textContent = GAME_DATA.preguntasPublicas[n];
+}
+
+function reiniciarTodo(){
+  if (!confirm("¿Reiniciar la partida desde cero? Se borran votos y puntajes de todos, y los teléfonos conectados se limpiarán solos.")) return;
+  localStorage.removeItem("mm_escena");
+  escenaActual = 0; finalCalculado = false;
+  JUGADORES = {};
+  for (const k in timers) pausarTimer(k);
+  if (modoOnline){
+    // Borra la sala y deja una señal de reinicio para que los teléfonos se limpien
+    Sync.reiniciarSala(SALA).then(function(){
+      Sync.setMeta(SALA, { fase:0, ronda:null, votacionAbierta:false, revelado:false, resetAt: Date.now() });
+    });
+  }
+  render();
+}
+
+/* ===================== Salas (nombrar / crear / sobrescribir) ===================== */
+function actualizarEstado(){
+  $("estado").innerHTML = modoOnline
+    ? `<span class="estado-conexion online">● En vivo · sala ${SALA}</span>`
+    : `<span class="estado-conexion offline">● Modo prueba (sin Firebase)</span>`;
+}
+
+function suscribirJugadores(){
+  if (!modoOnline) return;
+  Sync.onJugadores(SALA, function(js){
+    JUGADORES = js || {};
+    const t = escenas[escenaActual].tipo;
+    if (["setup","posiciones","votacion","final"].indexOf(t)!==-1) render();
+  });
+}
+
+function cambiarSala(){
+  if (!confirm("¿Cambiar el nombre de la partida? Volverás a la pantalla de nueva partida (no se borra nada hasta que crees o sobrescribas una sala).")) return;
+  salaLista = false;
+  render();
+}
+
+function crearOusarSala(){
+  const nombre = (($("nombre-sala") && $("nombre-sala").value) || SALA || SALA_DEFAULT).trim().toUpperCase();
+  if (!nombre){ alert("Escribe un nombre para la partida."); return; }
+
+  function activar(fresca){
+    SALA = nombre;
+    localStorage.setItem("mm_sala", SALA);
+    salaLista = true;
+    escenaActual = 0; guardarEscena();
+    finalCalculado = false;
+    for (const k in timers) pausarTimer(k);
+    if (modoOnline) suscribirJugadores();
+    actualizarEstado();
+    render(); // escribe la meta base (fase 0) de esta sala
+    if (modoOnline && fresca){
+      // señal para que cualquier teléfono viejo de una partida con este mismo nombre se limpie
+      Sync.setMeta(SALA, { resetAt: Date.now() });
+    }
+  }
+
+  if (!modoOnline){ activar(false); return; }
+
+  Sync.salaExiste(nombre).then(function(existe){
+    if (existe){
+      if (confirm('Ya existe una partida llamada "'+nombre+'". ¿Seguro que la quieres sobrescribir? Se borrarán sus jugadores, votos y puntajes.')){
+        Sync.reiniciarSala(nombre).then(function(){ activar(true); });
+      }
+      // si dice que no: no pasa nada, puede escribir otro nombre
+    } else {
+      activar(true);
+    }
+  });
+}
+
+/* ===================== Arranque ===================== */
+function arrancar(){
+  modoOnline = (Sync.init() === "online");
+  actualizarEstado();
+  if (modoOnline && salaLista) suscribirJugadores();
+  render();
+}
+window.onload = arrancar;
+</script>
+</body>
+</html>

@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard – Equipo de Perforación | CFE Geotermia</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d1117;
+      --surface:  #161b22;
+      --border:   #30363d;
+      --green:    #2ea043;
+      --green2:   #3fb950;
+      --amber:    #d29922;
+      --red:      #da3633;
+      --blue:     #388bfd;
+      --purple:   #a371f7;
+      --cyan:     #39c5cf;
+      --orange:   #e16d34;
+      --text:     #e6edf3;
+      --muted:    #8b949e;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px 24px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .logo-badge {
+      width: 40px; height: 40px;
+      background: var(--green);
+      border-radius: 8px;
+      display: grid; place-items: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    header h1 { font-size: 1rem; font-weight: 600; }
+    header p  { font-size: .78rem; color: var(--muted); margin-top: 1px; }
+    .header-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .badge-pozo {
+      background: #1c2a1e;
+      border: 1px solid var(--green);
+      color: var(--green2);
+      border-radius: 6px;
+      padding: 3px 10px;
+      font-size: .78rem;
+      font-weight: 600;
+    }
+    .badge-estado {
+      background: #1c2233;
+      border: 1px solid var(--blue);
+      color: var(--blue);
+      border-radius: 6px;
+      padding: 3px 10px;
+      font-size: .78rem;
+    }
+
+    /* ── Controls ── */
+    .controls {
+      display: flex;
+      gap: 10px;
+      padding: 14px 24px;
+      flex-wrap: wrap;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+    }
+    .controls label { font-size: .8rem; color: var(--muted); }
+    select, input[type="range"] {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: .82rem;
+      cursor: pointer;
+    }
+    select:focus { outline: 2px solid var(--green); }
+    .range-wrap { display: flex; align-items: center; gap: 8px; font-size: .82rem; color: var(--muted); }
+    #rangeVal { color: var(--text); font-weight: 600; min-width: 28px; }
+
+    /* ── Main grid ── */
+    main { padding: 20px 24px; display: grid; gap: 16px; }
+
+    /* KPI row */
+    .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 18px;
+    }
+    .kpi-card .kpi-label { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    .kpi-card .kpi-value { font-size: 1.7rem; font-weight: 700; margin: 4px 0 2px; }
+    .kpi-card .kpi-sub   { font-size: .75rem; color: var(--muted); }
+    .kpi-card .kpi-bar   { height: 4px; border-radius: 2px; background: var(--border); margin-top: 8px; overflow: hidden; }
+    .kpi-card .kpi-fill  { height: 100%; border-radius: 2px; transition: width .6s ease; }
+
+    /* chart row */
+    .chart-row { display: grid; grid-template-columns: 1fr 2fr; gap: 16px; }
+    @media (max-width: 860px) { .chart-row { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 20px;
+    }
+    .card-title {
+      font-size: .85rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      margin-bottom: 14px;
+    }
+    .chart-wrap { position: relative; }
+
+    /* Gantt row */
+    .gantt-wrap {
+      overflow-x: auto;
+      margin-top: 4px;
+    }
+    .gantt-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 7px;
+      font-size: .78rem;
+    }
+    .gantt-label { width: 130px; flex-shrink: 0; color: var(--muted); text-align: right; padding-right: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .gantt-track { flex: 1; height: 18px; background: var(--bg); border-radius: 3px; position: relative; min-width: 300px; }
+    .gantt-seg {
+      position: absolute;
+      height: 100%;
+      border-radius: 3px;
+      transition: opacity .2s;
+    }
+    .gantt-seg:hover { opacity: .75; cursor: pointer; }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; margin-top: 4px; }
+    table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+    th { color: var(--muted); font-weight: 500; text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 8px 12px; border-bottom: 1px solid #1c2128; }
+    tr:hover td { background: #1c2128; }
+    .pill {
+      display: inline-block;
+      padding: 2px 9px;
+      border-radius: 20px;
+      font-size: .72rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .eff-bar { display: flex; align-items: center; gap: 6px; }
+    .eff-track { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; min-width: 60px; }
+    .eff-fill  { height: 100%; border-radius: 3px; }
+
+    /* legend */
+    .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: .75rem; color: var(--muted); }
+    .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+    footer { padding: 20px 24px; color: var(--muted); font-size: .75rem; border-top: 1px solid var(--border); text-align: center; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════ HEADER ═══════════ -->
+<header>
+  <div class="logo-badge">⛏</div>
+  <div>
+    <h1>Dashboard de Actividades – Equipo de Perforación</h1>
+    <p>División de Geotermia · Comisión Federal de Electricidad</p>
+  </div>
+  <div class="header-right">
+    <span class="badge-pozo">Pozo LV-49D</span>
+    <span class="badge-estado">En Perforación</span>
+  </div>
+</header>
+
+<!-- ═══════════ CONTROLES ═══════════ -->
+<div class="controls">
+  <label>Período</label>
+  <select id="periodSel" onchange="refreshAll()">
+    <option value="7">Últimos 7 días</option>
+    <option value="14" selected>Últimos 14 días</option>
+    <option value="30">Últimos 30 días</option>
+  </select>
+
+  <label style="margin-left:12px">Fase de pozo</label>
+  <select id="faseSel" onchange="refreshAll()">
+    <option value="all">Todas las fases</option>
+    <option value="26">Fase 26″</option>
+    <option value="17">Fase 17½″</option>
+    <option value="12">Fase 12¼″</option>
+  </select>
+
+  <div class="range-wrap" style="margin-left:12px">
+    <label>Eficiencia mín.</label>
+    <input type="range" id="effSlider" min="0" max="100" value="0" step="5" oninput="onSlider(this)">
+    <span id="rangeVal">0%</span>
+  </div>
+</div>
+
+<!-- ═══════════ CONTENIDO ═══════════ -->
+<main>
+
+  <!-- KPIs -->
+  <div class="kpi-row" id="kpiRow"></div>
+
+  <!-- Donut + Barras diarias -->
+  <div class="chart-row">
+    <div class="card">
+      <div class="card-title">Distribución de Actividades</div>
+      <div class="chart-wrap" style="height:240px">
+        <canvas id="donutChart"></canvas>
+      </div>
+      <div class="legend" id="donutLegend"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Horas por Día · Top Actividades</div>
+      <div class="chart-wrap" style="height:260px">
+        <canvas id="barChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gantt de turno -->
+  <div class="card">
+    <div class="card-title">Distribución por Turno (últimas 24 h)</div>
+    <div class="gantt-wrap" id="ganttWrap"></div>
+    <div class="legend" id="ganttLegend"></div>
+  </div>
+
+  <!-- Bitácora -->
+  <div class="card">
+    <div class="card-title">Bitácora de Actividades</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Fecha / Turno</th>
+            <th>Actividad</th>
+            <th>Código</th>
+            <th>Fase</th>
+            <th>Horas</th>
+            <th>Profundidad (m)</th>
+            <th>Eficiencia</th>
+            <th>Operador</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<footer>Datos de muestra · CFE Geotermia · Dashboard v0.1 · 2026</footer>
+
+<!-- ═══════════ SCRIPTS ═══════════ -->
+<script>
+// ─── Paleta de colores por actividad ───────────────────────────────────────
+const ACTIVIDADES = [
+  { id: 'PERF',  label: 'Perforación Rotaria',      color: '#2ea043', cat: 'productivo' },
+  { id: 'VIAJE', label: 'Viaje (saca/mete BHA)',     color: '#388bfd', cat: 'productivo' },
+  { id: 'CEM',   label: 'Cementación',               color: '#a371f7', cat: 'productivo' },
+  { id: 'REG',   label: 'Registros Eléctricos',      color: '#39c5cf', cat: 'productivo' },
+  { id: 'TR',    label: 'Instalación de TR',         color: '#e16d34', cat: 'productivo' },
+  { id: 'MANT',  label: 'Mantenimiento Preventivo',  color: '#d29922', cat: 'no-productivo' },
+  { id: 'FALLA', label: 'Mantenimiento Correctivo',  color: '#da3633', cat: 'no-productivo' },
+  { id: 'ESP',   label: 'Tiempo de Espera',          color: '#6e7681', cat: 'no-productivo' },
+  { id: 'PROB',  label: 'Problemas de Pozo',         color: '#f85149', cat: 'no-productivo' },
+  { id: 'PRUE',  label: 'Pruebas de Formación',      color: '#58a6ff', cat: 'productivo' },
+];
+
+const FASES = ['26″', '17½″', '12¼″'];
+const TURNOS = ['Día', 'Noche'];
+const OPERADORES = ['R. Hernández', 'M. Vázquez', 'J. Pérez', 'L. Torres', 'C. Morales'];
+
+// ─── Generador de datos de muestra ─────────────────────────────────────────
+function genSeed(s) { let x=s; return ()=>{ x^=x<<13; x^=x>>17; x^=x<<5; return (x>>>0)/4294967296; }; }
+const rng = genSeed(0xC4FE2026);
+
+function genBitacora(days) {
+  const rows = [];
+  let depth = 1200;
+  for (let d = days - 1; d >= 0; d--) {
+    const date = new Date('2026-03-22');
+    date.setDate(date.getDate() + (14 - days) + (days - 1 - d));
+    const ds = date.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+    let remaining = 24;
+    while (remaining > 0) {
+      const act = ACTIVIDADES[Math.floor(rng() * ACTIVIDADES.length)];
+      const hrs = Math.min(remaining, +(1 + rng() * 5).toFixed(1));
+      remaining = +(remaining - hrs).toFixed(1);
+      const faseIdx = Math.floor(rng() * 3);
+      const eff = act.cat === 'productivo' ? +(70 + rng() * 30).toFixed(0) : +(20 + rng() * 50).toFixed(0);
+      if (act.id === 'PERF') depth += +(hrs * (3 + rng() * 5)).toFixed(1);
+      rows.push({
+        fecha: ds,
+        turno: TURNOS[Math.floor(rng() * 2)],
+        act,
+        fase: FASES[faseIdx],
+        hrs,
+        depth: +depth.toFixed(1),
+        eff,
+        op: OPERADORES[Math.floor(rng() * OPERADORES.length)],
+      });
+    }
+  }
+  return rows;
+}
+
+// ─── Estado ────────────────────────────────────────────────────────────────
+let donutInst = null, barInst = null;
+let effMin = 0;
+
+function getPeriod()  { return +document.getElementById('periodSel').value; }
+function getFase()    { return document.getElementById('faseSel').value; }
+
+function filteredData() {
+  const days = getPeriod();
+  const fase = getFase();
+  const rows = genBitacora(days);
+  return rows.filter(r => {
+    if (fase !== 'all' && !r.fase.startsWith(fase)) return false;
+    if (r.eff < effMin) return false;
+    return true;
+  });
+}
+
+// ─── KPIs ──────────────────────────────────────────────────────────────────
+function renderKPIs(data) {
+  const totalHrs = data.reduce((s, r) => s + r.hrs, 0);
+  const prodHrs  = data.filter(r => r.act.cat === 'productivo').reduce((s, r) => s + r.hrs, 0);
+  const nptHrs   = totalHrs - prodHrs;
+  const perfHrs  = data.filter(r => r.act.id === 'PERF').reduce((s, r) => s + r.hrs, 0);
+  const maxDepth = data.length ? Math.max(...data.map(r => r.depth)) : 0;
+  const avgEff   = data.length ? (data.reduce((s, r) => s + r.eff, 0) / data.length).toFixed(0) : 0;
+  const nptPct   = totalHrs ? ((nptHrs / totalHrs) * 100).toFixed(1) : 0;
+
+  const kpis = [
+    { label: 'Horas Totales',      value: totalHrs.toFixed(0)+'h',  sub: `${getPeriod()} días analizados`,    fill: 100,    color: '#388bfd' },
+    { label: 'Tiempo Productivo',  value: prodHrs.toFixed(0)+'h',   sub: `${((prodHrs/totalHrs)*100).toFixed(1)}% del total`, fill: (prodHrs/totalHrs)*100, color: '#2ea043' },
+    { label: 'NPT (No Productivo)',value: nptHrs.toFixed(0)+'h',    sub: `${nptPct}% del total`,             fill: (nptHrs/totalHrs)*100,   color: '#da3633' },
+    { label: 'Horas Perforando',   value: perfHrs.toFixed(0)+'h',   sub: `${((perfHrs/totalHrs)*100).toFixed(1)}% del total`, fill: (perfHrs/totalHrs)*100, color: '#3fb950' },
+    { label: 'Prof. Alcanzada',    value: maxDepth.toFixed(0)+'m',  sub: 'profundidad total acumulada',      fill: Math.min(maxDepth/3000*100,100), color: '#a371f7' },
+    { label: 'Eficiencia Media',   value: avgEff+'%',               sub: 'promedio ponderado',               fill: +avgEff, color: '#d29922' },
+  ];
+
+  document.getElementById('kpiRow').innerHTML = kpis.map(k => `
+    <div class="kpi-card">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value" style="color:${k.color}">${k.value}</div>
+      <div class="kpi-sub">${k.sub}</div>
+      <div class="kpi-bar"><div class="kpi-fill" style="width:${k.fill.toFixed(1)}%;background:${k.color}"></div></div>
+    </div>
+  `).join('');
+}
+
+// ─── Donut ─────────────────────────────────────────────────────────────────
+function renderDonut(data) {
+  const totals = {};
+  ACTIVIDADES.forEach(a => totals[a.id] = 0);
+  data.forEach(r => totals[r.act.id] = (totals[r.act.id]||0) + r.hrs);
+  const sorted = ACTIVIDADES.map(a => ({ ...a, total: totals[a.id] }))
+                             .filter(a => a.total > 0)
+                             .sort((a, b) => b.total - a.total);
+
+  const ctx = document.getElementById('donutChart');
+  if (donutInst) donutInst.destroy();
+  donutInst = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: sorted.map(a => a.label),
+      datasets: [{ data: sorted.map(a => a.total.toFixed(1)), backgroundColor: sorted.map(a => a.color), borderWidth: 2, borderColor: '#161b22', hoverOffset: 8 }]
+    },
+    options: {
+      cutout: '65%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.parsed.toFixed(1)} h (${((ctx.parsed / ctx.dataset.data.reduce((s,v)=>s+ +v,0))*100).toFixed(1)}%)`
+          }
+        }
+      }
+    }
+  });
+
+  document.getElementById('donutLegend').innerHTML = sorted.map(a => `
+    <div class="legend-item">
+      <div class="legend-dot" style="background:${a.color}"></div>
+      <span>${a.label} <b style="color:var(--text)">${a.total.toFixed(0)}h</b></span>
+    </div>
+  `).join('');
+}
+
+// ─── Barras diarias ────────────────────────────────────────────────────────
+function renderBar(data) {
+  // Top 5 actividades
+  const totals = {};
+  ACTIVIDADES.forEach(a => totals[a.id] = 0);
+  data.forEach(r => totals[r.act.id] = (totals[r.act.id]||0) + r.hrs);
+  const top5 = ACTIVIDADES.map(a => ({ ...a, total: totals[a.id] }))
+                           .sort((a, b) => b.total - a.total)
+                           .slice(0, 5);
+
+  // Agrupar por fecha
+  const dateMap = {};
+  data.forEach(r => {
+    if (!dateMap[r.fecha]) dateMap[r.fecha] = {};
+    dateMap[r.fecha][r.act.id] = (dateMap[r.fecha][r.act.id] || 0) + r.hrs;
+  });
+  const labels = Object.keys(dateMap).slice(-getPeriod());
+
+  const ctx = document.getElementById('barChart');
+  if (barInst) barInst.destroy();
+  barInst = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: top5.map(a => ({
+        label: a.label,
+        data: labels.map(d => +(dateMap[d]?.[a.id] || 0).toFixed(1)),
+        backgroundColor: a.color + 'cc',
+        borderColor: a.color,
+        borderWidth: 1,
+        borderRadius: 3,
+      }))
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: { color: '#8b949e', font: { size: 10 }, boxWidth: 10 }
+        },
+        tooltip: { mode: 'index', intersect: false }
+      },
+      scales: {
+        x: { stacked: true, ticks: { color: '#8b949e', font: { size: 9 }, maxRotation: 45 }, grid: { color: '#21262d' } },
+        y: { stacked: true, ticks: { color: '#8b949e' }, grid: { color: '#21262d' }, title: { display: true, text: 'Horas', color: '#8b949e' } }
+      }
+    }
+  });
+}
+
+// ─── Gantt de turno ────────────────────────────────────────────────────────
+function renderGantt(data) {
+  // Tomar los últimos 2 turnos (≈ 24 h)
+  const recent = data.slice(-16);
+  const byTurno = {};
+  recent.forEach(r => {
+    const key = `${r.fecha} · Turno ${r.turno}`;
+    if (!byTurno[key]) byTurno[key] = [];
+    byTurno[key].push(r);
+  });
+
+  const wrap = document.getElementById('ganttWrap');
+  const colorSet = new Set();
+  let html = '';
+
+  Object.entries(byTurno).forEach(([turno, rows]) => {
+    const total = rows.reduce((s, r) => s + r.hrs, 0);
+    let offset = 0;
+    html += `<div class="gantt-row">`;
+    html += `<div class="gantt-label" title="${turno}">${turno}</div>`;
+    html += `<div class="gantt-track">`;
+    rows.forEach(r => {
+      const pct = (r.hrs / total * 100).toFixed(2);
+      const left = (offset / total * 100).toFixed(2);
+      html += `<div class="gantt-seg" title="${r.act.label}: ${r.hrs}h" style="left:${left}%;width:${pct}%;background:${r.act.color}"></div>`;
+      offset += r.hrs;
+      colorSet.add(r.act.id);
+    });
+    html += `</div></div>`;
+  });
+
+  wrap.innerHTML = html;
+
+  const legend = ACTIVIDADES.filter(a => colorSet.has(a.id));
+  document.getElementById('ganttLegend').innerHTML = legend.map(a => `
+    <div class="legend-item">
+      <div class="legend-dot" style="background:${a.color}"></div>
+      <span>${a.label}</span>
+    </div>
+  `).join('');
+}
+
+// ─── Tabla ─────────────────────────────────────────────────────────────────
+function renderTable(data) {
+  const catColor = { 'productivo': '#2ea043', 'no-productivo': '#da3633' };
+  const catBg    = { 'productivo': '#1c2a1e', 'no-productivo': '#2d1b1b' };
+
+  const rows = data.slice().reverse().slice(0, 60);
+
+  document.getElementById('tableBody').innerHTML = rows.map((r, i) => `
+    <tr>
+      <td style="color:var(--muted)">${rows.length - i}</td>
+      <td>${r.fecha} <span style="color:var(--muted);font-size:.72rem">${r.turno}</span></td>
+      <td>
+        <span class="pill" style="background:${r.act.color}22;color:${r.act.color};border:1px solid ${r.act.color}55">
+          ${r.act.label}
+        </span>
+      </td>
+      <td style="color:var(--muted);font-family:monospace">${r.act.id}</td>
+      <td>${r.fase}</td>
+      <td style="font-weight:600">${r.hrs}h</td>
+      <td>${r.depth.toFixed(1)}</td>
+      <td>
+        <div class="eff-bar">
+          <span style="width:32px;text-align:right;font-size:.78rem;color:${r.eff>=70?'#2ea043':r.eff>=40?'#d29922':'#da3633'}">${r.eff}%</span>
+          <div class="eff-track">
+            <div class="eff-fill" style="width:${r.eff}%;background:${r.eff>=70?'#2ea043':r.eff>=40?'#d29922':'#da3633'}"></div>
+          </div>
+        </div>
+      </td>
+      <td style="color:var(--muted)">${r.op}</td>
+    </tr>
+  `).join('');
+}
+
+// ─── Refresh ───────────────────────────────────────────────────────────────
+function refreshAll() {
+  const data = filteredData();
+  renderKPIs(data);
+  renderDonut(data);
+  renderBar(data);
+  renderGantt(data);
+  renderTable(data);
+}
+
+function onSlider(el) {
+  effMin = +el.value;
+  document.getElementById('rangeVal').textContent = effMin + '%';
+  refreshAll();
+}
+
+// ─── Init ──────────────────────────────────────────────────────────────────
+refreshAll();
+</script>
+</body>
+</html>
