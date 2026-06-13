@@ -42,6 +42,7 @@ let JUGADORES = {};         // { id: {nombre, rol, puntosMisiones, voto, ...} }
 let escenaActual = parseInt(localStorage.getItem("mm_escena") || "0", 10);
 let preguntaActual = null;
 let finalCalculado = false;
+let totalesEscritos = {}; // firma de lo último escrito a cada jugador (evita reescrituras en bucle)
 
 /* ===================== Construcción de escenas ===================== */
 const escenas = [];
@@ -234,7 +235,7 @@ function render(){
 
   cont.innerHTML = html;
   $("progreso").textContent = `Escena ${escenaActual+1} de ${escenas.length}`;
-  if (escenas[escenaActual].tipo === "final" && modoOnline && !finalCalculado) calcularFinal();
+  if (escenas[escenaActual].tipo === "final" && modoOnline) calcularFinal();
 }
 
 /* ===================== Tablas y conteos ===================== */
@@ -272,8 +273,10 @@ function computarPuntajes(arr){
   const reales = arr.filter(j => j.rol !== "peps" && j.rol !== "complice");
   const votantes = reales.filter(j=>j.voto).length || 1;
   const votosPeps  = reales.filter(j=>j.voto===peps).length;
-  // El cómplice se considera "descubierto" si lo señalan en el voto O en el 2º paso.
-  const descCompl  = compl ? reales.filter(j=>j.voto===compl || j.otroCulpable===compl).length : 0;
+  // "Descubierto" = lo VOTARON como culpable en la votación principal.
+  // (El 2º paso de "encontrar al cómplice" da +5 a quien lo halle, pero
+  //  NO le quita al cómplice su bono de evasión.)
+  const descCompl  = compl ? reales.filter(j=>j.voto===compl).length : 0;
   const fracPeps  = votosPeps/votantes;
   const fracCompl = compl ? descCompl/votantes : 1;
 
@@ -305,18 +308,24 @@ function computarPuntajes(arr){
   });
 }
 
+// Calcula y escribe los totales a cada teléfono. Solo escribe los que
+// cambiaron (firma total+desglose), así puede llamarse en cada render del
+// final sin entrar en bucle: cuando nada cambia, no escribe nada.
+// NO llama a render() (lo llama quien la invoca) para evitar recursión.
 function calcularFinal(){
   const arr = jugadoresArray().filter(j=>j.nombre);
   if (arr.length === 0) return;
   computarPuntajes(arr);
-  // Escribir de vuelta a cada nodo para que cada teléfono vea su total.
   Object.entries(JUGADORES).forEach(([id,j])=>{
     if (j && j.nombre){
-      Sync.actualizarJugador(SALA, id, { total: j.total, desglose: j.desglose });
+      const firma = j.total + "|" + (j.desglose || "");
+      if (totalesEscritos[id] !== firma){
+        totalesEscritos[id] = firma;
+        Sync.actualizarJugador(SALA, id, { total: j.total, desglose: j.desglose });
+      }
     }
   });
   finalCalculado = true;
-  render();
 }
 
 function finalHTML(){
@@ -324,15 +333,42 @@ function finalHTML(){
   const arr = jugadoresArray().filter(j=>j.nombre);
   if (arr.length === 0) return `<p class="center">No hay jugadores conectados.</p>`;
   computarPuntajes(arr); // recalcula en memoria para mostrar siempre números frescos
+  const P = GAME_DATA.puntos;
   const peps = nombrePeps();
-  const compl = nombreComplice() || "(nadie tomó el rol de cómplice)";
+  const compl = nombreComplice();
+
+  // Estado de "descubrimiento" (mismo cálculo que da los 100 puntos)
+  const reales = arr.filter(j=>j.rol!=="peps" && j.rol!=="complice");
+  const votantes = reales.filter(j=>j.voto).length || 1;
+  const votosPeps = reales.filter(j=>j.voto===peps).length;
+  const descCompl = compl ? reales.filter(j=>j.voto===compl).length : 0;
+  const pctPeps  = Math.round(100*votosPeps/votantes);
+  const pctCompl = Math.round(100*descCompl/votantes);
+  const pepsSalvo  = (votosPeps/votantes) < P.umbralEvasion;
+  const complSalvo = compl ? (descCompl/votantes) < P.umbralEvasion : false;
+  const ok = `color:var(--verde-ok)`, mal = `color:var(--rojo)`;
+
+  const estado = `<div class="card" style="background:#fff3cf;border-color:var(--mostaza);text-align:left;">
+    <h3 class="center">🕵️ ¿Se salvaron los culpables?</h3>
+    <p>🎂 <strong>El Peps</strong>: lo votaron <strong>${votosPeps} de ${votantes}</strong> (${pctPeps}%) →
+      ${pepsSalvo ? `<strong style="${ok}">¡No lo descubrieron! +${P.evasionPeps}</strong>` : `<strong style="${mal}">Descubierto · sin bono</strong>`}</p>
+    ${compl
+      ? `<p>🤝 <strong>${compl}</strong> (cómplice): lo votaron <strong>${descCompl} de ${votantes}</strong> (${pctCompl}%) →
+          ${complSalvo ? `<strong style="${ok}">¡No lo descubrieron! +${P.evasionComplice}</strong>` : `<strong style="${mal}">Descubierto · sin bono</strong>`}</p>`
+      : `<p class="small">⚠️ Nadie entró con el número de cómplice. Revisa que esa persona haya tecleado el número correcto (21 por defecto).</p>`}
+    <p class="small">Cada culpable gana ${P.evasionPeps} si menos del ${Math.round(P.umbralEvasion*100)}% lo votó como culpable.</p>
+  </div>`;
+
   arr.sort((a,b)=>(b.total||0)-(a.total||0));
-  let filas = arr.map((j,i)=>`<tr class="${i===0?'lider':''}">
-    <td class="pos">${i===0?'👑':i+1}</td><td>${j.nombre}</td><td class="pts">${j.total!=null?j.total:0}</td></tr>`).join("");
-  return `<div class="secreto center"><strong>El culpable real:</strong> ${peps} 🎂 &nbsp;|&nbsp; <strong>El cómplice:</strong> ${compl} 🤝</div>
+  let filas = arr.map((j,i)=>{
+    const tag = (j.nombre===peps) ? ' 🎂' : (j.rol==="complice" ? ' 🤝' : '');
+    return `<tr class="${i===0?'lider':''}"><td class="pos">${i===0?'👑':i+1}</td><td>${j.nombre}${tag}</td><td class="pts">${j.total!=null?j.total:0}</td></tr>`;
+  }).join("");
+  return `<div class="secreto center"><strong>El culpable real:</strong> ${peps} 🎂 &nbsp;|&nbsp; <strong>El cómplice:</strong> ${compl || "(ninguno)"} 🤝</div>
+    ${estado}
     <table class="tabla-pos"><thead><tr><th>#</th><th>Jugador</th><th class="pts">Total</th></tr></thead><tbody>${filas}</tbody></table>
     <p class="center" style="font-size:1.2em;">🏆 ¡Ganador: <strong>${arr[0].nombre}</strong>! Le toca la primera rebanada del pastel de verdad... porque Niño Envuelto, ya saben, ya no quedó. 🎂</p>
-    <button class="fantasma" onclick="finalCalculado=false;calcularFinal()">🔄 Recalcular</button>`;
+    <button class="fantasma" onclick="totalesEscritos={};render()">🔄 Recalcular</button>`;
 }
 
 /* ===================== Interacciones ===================== */
@@ -347,7 +383,7 @@ function preguntaAleatoria(){
 function reiniciarTodo(){
   if (!confirm("¿Reiniciar la partida desde cero? Se borran votos y puntajes de todos, y los teléfonos conectados se limpiarán solos.")) return;
   localStorage.removeItem("mm_escena");
-  escenaActual = 0; finalCalculado = false;
+  escenaActual = 0; finalCalculado = false; totalesEscritos = {};
   JUGADORES = {};
   for (const k in timers) pausarTimer(k);
   if (modoOnline){
@@ -390,7 +426,7 @@ function crearOusarSala(){
     localStorage.setItem("mm_sala", SALA);
     salaLista = true;
     escenaActual = 0; guardarEscena();
-    finalCalculado = false;
+    finalCalculado = false; totalesEscritos = {};
     for (const k in timers) pausarTimer(k);
     if (modoOnline) suscribirJugadores();
     actualizarEstado();
