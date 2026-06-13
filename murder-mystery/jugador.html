@@ -21,8 +21,8 @@
   <!-- ===== REGISTRO ===== -->
   <div id="registro" class="card">
     <h2>Antes de empezar</h2>
-    <label for="sala">Código de la sala</label>
-    <input type="text" id="sala" placeholder="FIESTA">
+    <label>Partida a la que vas a entrar</label>
+    <div id="sala-wrap"></div>
 
     <label for="nombre">Tu nombre (elígelo de la lista)</label>
     <select id="nombre"><option value="">— Selecciona tu nombre —</option></select>
@@ -110,15 +110,18 @@ function llenarDropdown(){
 }
 
 function registrar(){
-  const sala = ($("sala").value || SALA_DEFAULT).trim().toUpperCase();
+  const salaEl = $("sala");
+  const sala = ((salaEl && salaEl.value) || "").trim().toUpperCase();
   const nombre = $("nombre").value;
   const numero = parseInt($("numero").value, 10);
+  if (!sala){ alert("Elige la partida a la que vas a entrar (te la dice el anfitrión)."); return; }
   if (!nombre){ alert("Elige tu nombre de la lista."); return; }
   if (!numero || numero < 1 || numero > 30){ alert("Escribe tu número (del 1 al 30)."); return; }
 
   SALA = sala;
   DATOS = { nombre, numero, rol: rolDe(nombre, numero) };
   guardarLocal();
+  actualizarEstadoJ();
   enviarEstado();
   render();
   subscribir();
@@ -381,20 +384,50 @@ function pintarModoPrueba(){
   $("personaje").appendChild(z);
 }
 
+/* ===================== Estado y selector de sala ===================== */
+function actualizarEstadoJ(){
+  const e = $("estado"); if (!e) return;
+  if (!modoOnline){ e.innerHTML = `<span class="estado-conexion offline">● Sin conexión (modo prueba)</span>`; return; }
+  e.innerHTML = `<span class="estado-conexion online">● En vivo${SALA ? " · sala " + SALA : ""}</span>`;
+}
+
+let SALAS_DISP = [];
+function renderSelectorSala(){
+  const wrap = $("sala-wrap"); if (!wrap) return;
+  if (!modoOnline){
+    const def = (typeof SALA_DEFAULT !== "undefined") ? SALA_DEFAULT : "FIESTA";
+    wrap.innerHTML = `<input type="text" id="sala" value="${def}" placeholder="${def}">
+      <p class="small">Sin conexión: escribe el nombre de la partida (modo prueba).</p>`;
+    return;
+  }
+  if (!SALAS_DISP.length){
+    wrap.innerHTML = `<div class="nota-aviso">⏳ Esperando a que el anfitrión cree la partida en la pantalla central... aparecerá aquí sola.</div>`;
+    return;
+  }
+  const opts = SALAS_DISP.map((s,i)=>`<option value="${s.nombre}" ${i===0?'selected':''}>${s.nombre}</option>`).join("");
+  wrap.innerHTML = `<select id="sala">${opts}</select>
+    <p class="small">Elige la partida que te diga el anfitrión (la de hasta arriba es la más reciente).</p>`;
+}
+
 /* ===================== Arranque ===================== */
 function arrancar(){
   llenarDropdown();
   modoOnline = (Sync.init() === "online");
   ID = Sync.idDispositivo();
+  actualizarEstadoJ();
+  renderSelectorSala();
 
-  $("estado").innerHTML = modoOnline
-    ? `<span class="estado-conexion online">● Conectado en vivo</span>`
-    : `<span class="estado-conexion offline">● Sin conexión (modo prueba)</span>`;
-
-  $("sala").value = (typeof SALA_DEFAULT !== "undefined") ? SALA_DEFAULT : "FIESTA";
+  if (modoOnline){
+    // Lista en vivo de salas disponibles para que el jugador la elija (no la escriba).
+    Sync.listarSalas(function(salas){
+      SALAS_DISP = salas || [];
+      if (!DATOS.nombre) renderSelectorSala();   // solo mientras siga en la pantalla de registro
+    });
+  }
 
   const hay = cargarLocal();
   if (hay){
+    actualizarEstadoJ();
     render();
     enviarEstado();
     subscribir();

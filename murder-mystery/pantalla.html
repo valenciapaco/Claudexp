@@ -384,8 +384,9 @@ function crearOusarSala(){
     actualizarEstado();
     render(); // escribe la meta base (fase 0) de esta sala
     if (modoOnline && fresca){
-      // señal para que cualquier teléfono viejo de una partida con este mismo nombre se limpie
-      Sync.setMeta(SALA, { resetAt: Date.now() });
+      // marca de creación (para que el jugador liste la sala) + señal de reinicio
+      // por si quedaron teléfonos de una partida vieja con este mismo nombre
+      Sync.setMeta(SALA, { creada: Date.now(), resetAt: Date.now() });
     }
   }
 

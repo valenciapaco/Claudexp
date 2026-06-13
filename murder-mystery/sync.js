@@ -63,6 +63,21 @@ const Sync = (function () {
     return db.ref("salas/" + sala).once("value").then(function (s) { return s.exists(); });
   }
 
+  // Lista en vivo de salas disponibles (las que creó la pantalla),
+  // ordenadas de la más reciente a la más vieja. El jugador elige de aquí.
+  function listarSalas(cb) {
+    if (!online()) { cb([]); return; }
+    db.ref("salas").on("value", function (snap) {
+      const val = snap.val() || {};
+      const arr = Object.keys(val).map(function (nombre) {
+        const meta = (val[nombre] && val[nombre].meta) || {};
+        return { nombre: nombre, creada: meta.creada || 0 };
+      });
+      arr.sort(function (a, b) { return (b.creada || 0) - (a.creada || 0); });
+      cb(arr);
+    });
+  }
+
   function reiniciarSala(sala) {
     if (!online()) return Promise.resolve();
     return db.ref("salas/" + sala).remove();
@@ -107,7 +122,7 @@ const Sync = (function () {
 
   return {
     init, online, estaConfigurado,
-    setMeta, onJugadores, salaExiste, reiniciarSala,
+    setMeta, onJugadores, salaExiste, listarSalas, reiniciarSala,
     unirse, actualizarJugador, onMeta, onJugador,
     idDispositivo
   };
