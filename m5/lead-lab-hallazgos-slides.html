@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="slides-format" content="viewport">
+    <title>Lead Lab — Análisis Financiero y Monetización</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style type="text/tailwindcss">
+        @theme {
+            --color-bg: #0c1220;
+            --color-bg-deep: #060c18;
+            --color-surface: #162038;
+            --color-text: #f1f5f9;
+            --color-text-secondary: #cbd5e1;
+            --color-text-muted: #94a3b8;
+            --color-accent-1: #3b82f6;
+            --color-accent-2: #818cf8;
+            --color-accent-3: #06b6d4;
+            --color-glass-bg: rgba(255,255,255,0.05);
+            --color-glass-border: rgba(255,255,255,0.09);
+            --color-vignette: rgba(0,0,0,0.45);
+            --font-display: 'Playfair Display', serif;
+            --font-body: 'DM Sans', sans-serif;
+        }
+    </style>
+    <style>
+        :root { --color-bg: #0c1220; --color-text: #f1f5f9; --glow-color-rgb: 59,130,246; }
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body { background: var(--color-bg); margin: 0; }
+        body { font-family: 'DM Sans', sans-serif; color: var(--color-text); overflow: hidden; height: 100vh; width: 100vw; }
+        .deck { width: 100vw; height: 100vh; position: relative; }
+        .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--color-bg); display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; transform: scale(0.95); transition: opacity 0.7s ease, transform 0.7s ease; pointer-events: none; overflow: hidden; }
+        .slide.active { opacity: 1; transform: scale(1); pointer-events: all; }
+        .slide > .content { position: relative; z-index: 2; width: 100%; max-width: 1100px; padding: clamp(1.2rem, 3.5vw, 3.5rem); }
+        .nav-controls { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; z-index: 100; background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); padding: 9px 22px; border-radius: 40px; border: 1px solid rgba(255,255,255,0.09); }
+        .nav-btn { width: 38px; height: 38px; border: none; background: rgba(255,255,255,0.06); color: #3b82f6; border-radius: 50%; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.3s; }
+        .nav-btn:hover { background: rgba(59,130,246,0.18); }
+        .slide-dots { display: flex; gap: 7px; }
+        .slide-dots .dot { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,0.18); cursor: pointer; transition: background 0.3s, transform 0.3s; }
+        .slide-dots .dot.active { background: #3b82f6; transform: scale(1.3); }
+        .slide-counter { font-size: 0.78rem; color: #94a3b8; min-width: 38px; text-align: center; }
+        .reveal { opacity: 0; transform: translateY(20px); }
+        .text-glow { text-shadow: 0 0 20px rgba(59,130,246,0.55), 0 0 40px rgba(59,130,246,0.2); }
+        .stat-glow { text-shadow: 0 0 28px rgba(59,130,246,0.65), 0 0 55px rgba(59,130,246,0.25); }
+        @keyframes float-slow { 0%{transform:translate(0,0) scale(1);} 25%{transform:translate(55px,-45px) scale(1.1);} 50%{transform:translate(-35px,38px) scale(0.92);} 75%{transform:translate(45px,18px) scale(1.07);} 100%{transform:translate(0,0) scale(1);} }
+        @keyframes float-drift { 0%{transform:translate(0,0) scale(1) rotate(0deg);} 33%{transform:translate(-45px,-55px) scale(1.13) rotate(3deg);} 66%{transform:translate(38px,28px) scale(0.89) rotate(-2deg);} 100%{transform:translate(0,0) scale(1) rotate(0deg);} }
+        @keyframes float { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-14px);} }
+        @keyframes glow-pulse { 0%,100%{text-shadow:0 0 20px rgba(59,130,246,0.5),0 0 40px rgba(59,130,246,0.2);} 50%{text-shadow:0 0 30px rgba(59,130,246,0.8),0 0 60px rgba(59,130,246,0.3);} }
+        .glow-pulse { animation: glow-pulse 3s ease-in-out infinite; }
+        .gradient-mesh { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+        .blob { position: absolute; border-radius: 50%; filter: blur(80px); animation: float-slow 11s ease-in-out infinite; }
+        .blob:nth-child(2) { animation: float-drift 15s ease-in-out infinite; }
+        .blob:nth-child(3) { animation: float-slow 19s ease-in-out infinite reverse; }
+        .slide::before { content:''; position:absolute; inset:0; z-index:1; pointer-events:none; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"); background-repeat:repeat; background-size:256px 256px; opacity:0.03; mix-blend-mode:overlay; }
+        .slide::after { content:''; position:absolute; inset:0; z-index:1; pointer-events:none; background:radial-gradient(ellipse at center, transparent 50%, var(--color-vignette) 100%); }
+        .bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #3b82f6, #818cf8); transition: width 0.8s ease; }
+        .pill-green { background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.25); }
+        .pill-red { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
+        .pill-blue { background: rgba(59,130,246,0.15); color: #93c5fd; border: 1px solid rgba(59,130,246,0.25); }
+        .pill-yellow { background: rgba(234,179,8,0.15); color: #fde047; border: 1px solid rgba(234,179,8,0.25); }
+        .border-l-accent { border-left: 4px solid #3b82f6; }
+        .border-l-accent-2 { border-left: 4px solid #818cf8; }
+        .border-l-accent-3 { border-left: 4px solid #06b6d4; }
+        .border-l-green { border-left: 4px solid #4ade80; }
+        .border-l-red { border-left: 4px solid #f87171; }
+        .border-l-yellow { border-left: 4px solid #fde047; }
+        @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration:0.01ms !important; transition-duration:0.2s !important; } }
+    </style>
+</head>
+<body>
+
+<div class="mouse-spotlight" style="position:fixed;inset:0;z-index:99;pointer-events:none;"></div>
+
+<div class="deck">
+
+<!-- SLIDE 1: El Negocio -->
+<div class="slide slide-1 active" data-slide="1">
+    <div class="gradient-mesh">
+        <div class="blob" style="width:480px;height:480px;top:-120px;right:-80px;background:#3b82f6;opacity:0.13;"></div>
+        <div class="blob" style="width:320px;height:320px;bottom:-90px;left:-60px;background:#818cf8;opacity:0.11;"></div>
+        <div class="blob" style="width:220px;height:220px;top:45%;left:18%;background:#06b6d4;opacity:0.09;"></div>
+    </div>
+    <canvas class="particle-canvas" style="position:absolute;inset:0;z-index:1;"></canvas>
+    <div class="content">
+        <div class="reveal" style="margin-bottom:0.6rem;">
+            <span style="font-size:0.75rem;letter-spacing:0.18em;text-transform:uppercase;color:#94a3b8;font-family:'DM Sans',sans-serif;">Lead Lab · Análisis Financiero y Monetización de Negocios Digitales</span>
+        </div>
+        <h1 class="reveal" style="font-family:'Playfair Display',serif;font-size:clamp(2.2rem,5vw,4.2rem);font-weight:900;line-height:1.12;margin:0 0 1rem;background:linear-gradient(135deg,#3b82f6,#818cf8,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">El Negocio:<br>Lead Lab</h1>
+        <p class="reveal" style="font-size:clamp(1rem,1.6vw,1.25rem);color:#cbd5e1;max-width:640px;line-height:1.65;margin-bottom:1rem;">Consultoría digital educativa <strong style="color:#f1f5f9;">100% en línea</strong>, fundada en Querétaro en 2023. Mercado: dueños de negocios de servicios con facturación de $600K–$4M MXN anuales.</p>
+        <p class="reveal" style="font-size:clamp(0.85rem,1.2vw,1rem);color:#94a3b8;margin-bottom:1.6rem;letter-spacing:0.04em;"><span style="color:#64748b;margin-right:0.5rem;">✦</span>Francisco Valencia Martínez del Campo<span style="color:#64748b;margin-left:0.5rem;">·</span><span style="color:#64748b;margin-left:0.5rem;">Maestría en Alta Dirección de Negocios Digitales</span></p>
+        <div class="reveal" style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;">
+            <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);border-radius:14px;padding:1rem 0.9rem;">
+                <div style="font-size:1.3rem;margin-bottom:0.3rem;">🎁</div>
+                <div style="font-size:0.75rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.1em;">Entrada</div>
+                <div style="font-weight:700;font-size:0.9rem;color:#f1f5f9;">Contenido gratis</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(59,130,246,0.3);border-radius:14px;padding:1rem 0.9rem;">
+                <div style="font-size:1.3rem;margin-bottom:0.3rem;">📘</div>
+                <div style="font-size:0.75rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.1em;">Mini-curso</div>
+                <div style="font-weight:700;font-size:0.9rem;color:#93c5fd;">$1,297 MXN</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(129,140,248,0.3);border-radius:14px;padding:1rem 0.9rem;">
+                <div style="font-size:1.3rem;margin-bottom:0.3rem;">📗</div>
+                <div style="font-size:0.75rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.1em;">Curso Core</div>
+                <div style="font-weight:700;font-size:0.9rem;color:#a5b4fc;">$4,500 MXN</div>
+            </div>
+            <div style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.3);border-radius:14px;padding:1rem 0.9rem;">
+                <div style="font-size:1.3rem;margin-bottom:0.3rem;">🏆</div>
+                <div style="font-size:0.75rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.1em;">High Ticket</div>
+                <div style="font-weight:700;font-size:0.9rem;color:#67e8f9;">$18,000 MXN</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 2: Resultados Financieros -->
+<div class="slide slide-2" data-slide="2">
+    <div class="gradient-mesh">
+        <div class="blob" style="width:400px;height:400px;top:-80px;right:-60px;background:#3b82f6;opacity:0.09;"></div>
+        <div class="blob" style="width:280px;height:280px;bottom:-70px;left:-50px;background:#818cf8;opacity:0.07;"></div>
+    </div>
+    <div class="content">
+        <h2 class="reveal" style="font-family:'Playfair Display',serif;font-size:clamp(1.7rem,3.5vw,2.6rem);font-weight:700;margin-bottom:0.3rem;">Resultados Financieros 2024–2026</h2>
+        <p class="reveal" style="font-size:0.85rem;color:#94a3b8;margin-bottom:1.1rem;letter-spacing:0.05em;">Cifras en pesos mexicanos (MXN). 2026 = proyección anualizada (base enero–abril).</p>
+        <div class="reveal" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1rem;">
+            <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);border-radius:14px;padding:1.1rem 1rem;">
+                <div style="font-size:0.72rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:0.4rem;">2024 (Real)</div>
+                <div style="font-size:1.6rem;font-weight:900;color:#f1f5f9;">$1,294,525</div>
+                <div style="font-size:0.78rem;color:#94a3b8;margin-top:0.2rem;">Ingresos totales</div>
+                <div style="margin-top:0.6rem;font-size:0.78rem;"><span class="pill-green" style="border-radius:20px;padding:2px 9px;font-size:0.72rem;">Margen neto 30.4%</span></div>
+            </div>
+            <div style="background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.2);border-radius:14px;padding:1.1rem 1rem;">
+                <div style="font-size:0.72rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:0.4rem;">2025 (Real)</div>
+                <div style="font-size:1.6rem;font-weight:900;color:#f87171;">$1,344,685</div>
+                <div style="font-size:0.78rem;color:#94a3b8;margin-top:0.2rem;">Ingresos totales</div>
+                <div style="margin-top:0.6rem;"><span class="pill-red" style="border-radius:20px;padding:2px 9px;font-size:0.72rem;">Margen neto −6.8%</span></div>
+            </div>
+            <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.22);border-radius:14px;padding:1.1rem 1rem;">
+                <div style="font-size:0.72rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:0.4rem;">2026 (Proyectado)</div>
+                <div style="font-size:1.6rem;font-weight:900;color:#93c5fd;">$1,400,935</div>
+                <div style="font-size:0.78rem;color:#94a3b8;margin-top:0.2rem;">Ingresos totales</div>
+                <div style="margin-top:0.6rem;"><span class="pill-green" style="border-radius:20px;padding:2px 9px;font-size:0.72rem;">Margen neto 26.0%</span></div>
+            </div>
+        </div>
+        <div class="reveal" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:0.85rem 1.1rem;">
+            <p style="margin:0;font-size:0.87rem;color:#cbd5e1;line-height:1.5;"><span style="color:#f87171;font-weight:600;">⚠ 2025:</span> Ingresos crecieron +3.9% pero costos directos subieron +150% y gastos operativos +79.9% → pérdida neta de <strong style="color:#f87171;">$91,883 MXN</strong>. La causa: el canal de membresía mensual ($397/mes).</p>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 3: El experimento de la membresía -->
+<div class="slide slide-3" data-slide="3">
+    <div class="gradient-mesh">
+        <div class="blob" style="width:380px;height:380px;top:-70px;right:-50px;background:#f87171;opacity:0.08;"></div>
+        <div class="blob" style="width:260px;height:260px;bottom:-60px;left:-40px;background:#818cf8;opacity:0.07;"></div>
+    </div>
+    <div class="content">
+        <h2 class="reveal" style="font-family:'Playfair Display',serif;font-size:clamp(1.7rem,3.5vw,2.5rem);font-weight:700;margin-bottom:0.25rem;">Lección del Canal de Membresía (2025)</h2>
+        <p class="reveal" style="font-size:0.85rem;color:#94a3b8;margin-bottom:1rem;">Evidencia empírica sobre por qué se descontinuó el modelo de suscripción.</p>
+        <div class="reveal" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+            <div style="background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.2);border-radius:14px;padding:1rem 1.1rem;">
+                <div style="font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:0.3rem;">Pico máximo alcanzado</div>
+                <div style="font-size:2.1rem;font-weight:900;color:#f87171;" class="stat-glow">43</div>
+                <div style="font-size:0.8rem;color:#94a3b8;">suscriptores (mayo 2025)</div>
+                <div style="font-size:0.78rem;color:#fca5a5;margin-top:0.5rem;">vs. punto de equilibrio de <strong>154</strong> suscriptores</div>
+            </div>
+            <div style="background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.2);border-radius:14px;padding:1rem 1.1rem;">
+                <div style="font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:0.3rem;">Pérdida total del canal</div>
+                <div style="font-size:2.1rem;font-weight:900;color:#f87171;" class="stat-glow">$491K</div>
+                <div style="font-size:0.8rem;color:#94a3b8;">MXN en 11 meses</div>
+                <div style="font-size:0.78rem;color:#fca5a5;margin-top:0.5rem;">Por cada $1 ingresado, se gastaron <strong>$2.23</strong></div>
+            </div>
+        </div>
+        <div class="reveal" style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.8rem;">
+            <div style="background:rgba(255,255,255,0.04);border-left:4px solid #f87171;border-radius:0 10px 10px 0;padding:0.8rem 0.9rem;">
+                <div style="font-size:0.72rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.25rem;">Costos fijos canal</div>
+                <div style="font-weight:700;color:#fca5a5;">$58,000/mes</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.04);border-left:4px solid #fde047;border-radius:0 10px 10px 0;padding:0.8rem 0.9rem;">
+                <div style="font-size:0.72rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.25rem;">27.9% del punto de equilibrio</div>
+                <div style="font-weight:700;color:#fde047;">Masa crítica no alcanzada</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.04);border-left:4px solid #4ade80;border-radius:0 10px 10px 0;padding:0.8rem 0.9rem;">
+                <div style="font-size:0.72rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.25rem;">Decisión correcta</div>
+                <div style="font-weight:700;color:#4ade80;">Descontinuada dic. 2025</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 4: Estructura de Costos y Punto de Equilibrio -->
+<div class="slide slide-4" data-slide="4">
+    <div class="gradient-mesh">
+        <div class="blob" style="width:360px;height:360px;top:-60px;right:-50px;background:#06b6d4;opacity:0.08;"></div>
+        <div class="blob" style="width:240px;height:240px;bottom:-60px;left:-40px;background:#3b82f6;opacity:0.07;"></div>
+    </div>
+    <div class="content">
+        <h2 class="reveal" style="font-family:'Playfair Display',serif;font-size:clamp(1.7rem,3.5vw,2.5rem);font-weight:700;margin-bottom:0.25rem;">Estructura de Costos y Punto de Equilibrio</h2>
+        <p class="reveal" style="font-size:0.85rem;color:#94a3b8;margin-bottom:1rem;">Modelo 2026 saneado — la decisión de eliminar la membresía restablece el colchón financiero.</p>
+        <div class="reveal" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:0.9rem;">
+            <div>
+                <div style="font-size:0.72rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:0.6rem;">Costos fijos 2026</div>
+                <div style="display:flex;flex-direction:column;gap:0.45rem;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.83rem;">
+                        <span style="color:#cbd5e1;">Honorarios co-founders</span><span style="font-weight:600;color:#f1f5f9;">$432,000</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.83rem;">
+                        <span style="color:#cbd5e1;">Software y herramientas</span><span style="font-weight:600;color:#f1f5f9;">$54,000</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.83rem;">
+                        <span style="color:#cbd5e1;">Marketing base + admin</span><span style="font-weight:600;color:#f1f5f9;">$84,000</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.83rem;">
+                        <span style="color:#cbd5e1;">Depreciaciones</span><span style="font-weight:600;color:#f1f5f9;">$27,500</span>
+                    </div>
+                    <div style="border-top:1px solid rgba(255,255,255,0.09);padding-top:0.4rem;display:flex;justify-content:space-between;font-weight:700;font-size:0.92rem;">
+                        <span style="color:#f1f5f9;">Total costos fijos</span><span style="color:#93c5fd;">$597,500</span>
+                    </div>
+                </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:0.8rem;">
+                <div style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.25);border-radius:14px;padding:0.9rem 1rem;">
+                    <div style="font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:0.3rem;">Punto de equilibrio 2026</div>
+                    <div style="font-size:1.7rem;font-weight:900;color:#93c5fd;" class="stat-glow">$746,875</div>
+                    <div style="font-size:0.78rem;color:#94a3b8;">= $597,500 / 80.0% margen bruto</div>
+                </div>
+                <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.22);border-radius:14px;padding:0.9rem 1rem;">
+                    <div style="font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:0.3rem;">Colchón sobre el PE</div>
+                    <div style="font-size:1.7rem;font-weight:900;color:#4ade80;" class="stat-glow">87.6%</div>
+                    <div style="font-size:0.78rem;color:#94a3b8;">Ingresos proyectados: $1,400,935</div>
+                </div>
+            </div>
+        </div>
+        <div class="reveal" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:0.75rem 1rem;">
+            <p style="margin:0;font-size:0.83rem;color:#cbd5e1;"><span style="color:#f87171;font-weight:600;">2025:</span> PE subió a $1,468,048 MXN superando ingresos reales por $123,363 MXN → pérdida operativa inevitable. <span style="color:#4ade80;font-weight:600;">2026</span> revierte por completo ese efecto.</p>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 5: Indicadores Clave de Rentabilidad -->
+<div class="slide slide-5" data-slide="5">
+    <div class="gradient-mesh">
+        <div class="blob" style="width:350px;height:350px;top:-60px;right:-50px;background:#818cf8;opacity:0.09;"></div>
+        <div class="blob" style="width:230px;height:230px;bottom:-55px;left:-40px;background:#06b6d4;opacity:0.07;"></div>
+    </div>
+    <div class="content">
+        <h2 class="reveal" style="font-family:'Playfair Display',serif;font-size:clamp(1.7rem,3.5vw,2.5rem);font-weight:700;margin-bottom:0.25rem;">Indicadores Clave de Rentabilidad</h2>
+        <p class="reveal" style="font-size:0.85rem;color:#94a3b8;margin-bottom:1rem;">Los márgenes unitarios del modelo digital son estructuralmente altos: el costo variable por venta es solo la comisión del procesador de pagos (5%).</p>
+        <div class="reveal" style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.8rem;margin-bottom:1rem;">
+            <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);border-radius:14px;padding:0.85rem 0.8rem;text-align:center;">
+                <div style="font-size:0.68rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.3rem;">Margen bruto '26</div>
+                <div style="font-size:1.7rem;font-weight:900;color:#4ade80;" class="stat-glow">80%</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);border-radius:14px;padding:0.85rem 0.8rem;text-align:center;">
+                <div style="font-size:0.68rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.3rem;">Margen EBIT '26</div>
+                <div style="font-size:1.7rem;font-weight:900;color:#93c5fd;" class="stat-glow">37.4%</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);border-radius:14px;padding:0.85rem 0.8rem;text-align:center;">
+                <div style="font-size:0.68rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.3rem;">ROE '26</div>
+                <div style="font-size:1.7rem;font-weight:900;color:#a5b4fc;" class="stat-glow">84.6%</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);border-radius:14px;padding:0.85rem 0.8rem;text-align:center;">
+                <div style="font-size:0.68rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.3rem;">Razón corriente '26</div>
+                <div style="font-size:1.7rem;font-weight:900;color:#67e8f9;" class="stat-glow">7.91</div>
+            </div>
+        </div>
+        <div class="reveal" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.8rem;">
+            <div style="background:rgba(255,255,255,0.04);border-left:4px solid #3b82f6;border-radius:0 10px 10px 0;padding:0.8rem 0.9rem;">
+                <div style="font-size:0.7rem;color:#94a3b8;margin-bottom:0.25rem;">Margen contribución unitario</div>
+                <div style="font-weight:700;color:#93c5fd;">95% en todos los productos</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.04);border-left:4px solid #818cf8;border-radius:0 10px 10px 0;padding:0.8rem 0.9rem;">
+                <div style="font-size:0.7rem;color:#94a3b8;margin-bottom:0.25rem;">Cobertura de intereses '26</div>
+                <div style="font-weight:700;color:#a5b4fc;">149.6x</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.04);border-left:4px solid #4ade80;border-radius:0 10px 10px 0;padding:0.8rem 0.9rem;">
+                <div style="font-size:0.7rem;color:#94a3b8;margin-bottom:0.25rem;">Endeudamiento '26</div>
+                <div style="font-weight:700;color:#4ade80;">Solo 9.8%</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 6: Evaluación de Estrategias -->
+<div class="slide slide-6" data-slide="6">
+    <div class="gradient-mesh">
+        <div class="blob" style="width:360px;height:360px;top:-65px;right:-55px;background:#3b82f6;opacity:0.09;"></div>
+        <div class="blob" style="width:250px;height:250px;bottom:-55px;left:-40px;background:#818cf8;opacity:0.07;"></div>
+    </div>
+    <div class="content">
+        <h2 class="reveal" style="font-family:'Playfair Display',serif;font-size:clamp(1.7rem,3.5vw,2.5rem);font-weight:700;margin-bottom:0.25rem;">Evaluación Comparativa de Estrategias</h2>
+        <p class="reveal" style="font-size:0.85rem;color:#94a3b8;margin-bottom:0.9rem;">Cuatro alternativas analizadas. La selección prioriza: no generar costos fijos nuevos.</p>
+        <div class="reveal" style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:0.78rem;">
+                <thead>
+                    <tr style="border-bottom:1px solid rgba(255,255,255,0.1);">
+                        <th style="text-align:left;padding:0.5rem 0.6rem;color:#94a3b8;font-weight:500;text-transform:uppercase;font-size:0.68rem;letter-spacing:0.1em;">Criterio</th>
+                        <th style="text-align:center;padding:0.5rem 0.5rem;color:#f87171;font-weight:600;">E1: Suscripción</th>
+                        <th style="text-align:center;padding:0.5rem 0.5rem;color:#4ade80;font-weight:600;">E2: B2B ★</th>
+                        <th style="text-align:center;padding:0.5rem 0.5rem;color:#93c5fd;font-weight:600;">E3: Publicidad</th>
+                        <th style="text-align:center;padding:0.5rem 0.5rem;color:#fde047;font-weight:600;">E4: Internacional</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                        <td style="padding:0.45rem 0.6rem;color:#cbd5e1;">Inversión requerida</td>
+                        <td style="text-align:center;color:#f87171;padding:0.45rem 0.5rem;">Alta ($58K+/mes)</td>
+                        <td style="text-align:center;color:#4ade80;padding:0.45rem 0.5rem;background:rgba(34,197,94,0.05);">Media ($75K única)</td>
+                        <td style="text-align:center;color:#93c5fd;padding:0.45rem 0.5rem;">Baja ($0–$20K)</td>
+                        <td style="text-align:center;color:#fde047;padding:0.45rem 0.5rem;">Muy alta ($500K+)</td>
+                    </tr>
+                    <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                        <td style="padding:0.45rem 0.6rem;color:#cbd5e1;">Recuperación</td>
+                        <td style="text-align:center;color:#f87171;padding:0.45rem 0.5rem;">12+ meses</td>
+                        <td style="text-align:center;color:#4ade80;padding:0.45rem 0.5rem;background:rgba(34,197,94,0.05);">2–3 meses</td>
+                        <td style="text-align:center;color:#93c5fd;padding:0.45rem 0.5rem;">6–12 meses</td>
+                        <td style="text-align:center;color:#fde047;padding:0.45rem 0.5rem;">18–24 meses</td>
+                    </tr>
+                    <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                        <td style="padding:0.45rem 0.6rem;color:#cbd5e1;">Ingreso potencial anual</td>
+                        <td style="text-align:center;color:#f87171;padding:0.45rem 0.5rem;">$600K–$2M (si logra masa crítica)</td>
+                        <td style="text-align:center;color:#4ade80;padding:0.45rem 0.5rem;background:rgba(34,197,94,0.05);">$800K–$1.5M</td>
+                        <td style="text-align:center;color:#93c5fd;padding:0.45rem 0.5rem;">$30K–$150K</td>
+                        <td style="text-align:center;color:#fde047;padding:0.45rem 0.5rem;">$3M+</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:0.45rem 0.6rem;color:#cbd5e1;font-weight:600;">Recomendación</td>
+                        <td style="text-align:center;padding:0.45rem 0.5rem;"><span style="background:rgba(239,68,68,0.15);color:#f87171;border-radius:20px;padding:2px 9px;font-size:0.7rem;">No ahora</span></td>
+                        <td style="text-align:center;padding:0.45rem 0.5rem;background:rgba(34,197,94,0.05);"><span style="background:rgba(34,197,94,0.18);color:#4ade80;border-radius:20px;padding:2px 9px;font-size:0.7rem;font-weight:700;">Principal</span></td>
+                        <td style="text-align:center;padding:0.45rem 0.5rem;"><span style="background:rgba(59,130,246,0.15);color:#93c5fd;border-radius:20px;padding:2px 9px;font-size:0.7rem;">Complementaria</span></td>
+                        <td style="text-align:center;padding:0.45rem 0.5rem;"><span style="background:rgba(234,179,8,0.13);color:#fde047;border-radius:20px;padding:2px 9px;font-size:0.7rem;">2027+</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 7: Estrategia B2B -->
+<div class="slide slide-7" data-slide="7">
+    <div class="gradient-mesh">
+        <div class="blob" style="width:370px;height:370px;top:-65px;right:-55px;background:#4ade80;opacity:0.07;"></div>
+        <div class="blob" style="width:260px;height:260px;bottom:-55px;left:-40px;background:#3b82f6;opacity:0.07;"></div>
+    </div>
+    <canvas class="particle-canvas-ambient" style="position:absolute;inset:0;z-index:1;"></canvas>
+    <div class="content">
+        <h2 class="reveal" style="font-family:'Playfair Display',serif;font-size:clamp(1.7rem,3.5vw,2.5rem);font-weight:700;margin-bottom:0.25rem;">Estrategia Principal: Canal B2B</h2>
+        <p class="reveal" style="font-size:0.85rem;color:#94a3b8;margin-bottom:0.9rem;">Dos formatos que aprovechan contenido existente sin generar costos fijos nuevos.</p>
+        <div class="reveal" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:0.9rem;">
+            <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(59,130,246,0.25);border-radius:14px;padding:1rem;">
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;">
+                    <span style="font-size:1.3rem;">📦</span>
+                    <span style="font-weight:700;color:#93c5fd;">Formato A — Cursos por volumen</span>
+                </div>
+                <p style="font-size:0.82rem;color:#cbd5e1;margin:0 0 0.5rem;line-height:1.5;">Paquetes de 20 licencias para empresas. Temas: IA para ventas, marketing digital automatizado.</p>
+                <div style="font-size:0.8rem;"><span style="color:#4ade80;font-weight:700;">$13,400 MXN/paquete</span> — <span style="color:#94a3b8;">Margen neto $12,060</span></div>
+            </div>
+            <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(129,140,248,0.25);border-radius:14px;padding:1rem;">
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;">
+                    <span style="font-size:1.3rem;">🔧</span>
+                    <span style="font-weight:700;color:#a5b4fc;">Formato B — Consultoría + capacitación</span>
+                </div>
+                <p style="font-size:0.82rem;color:#cbd5e1;margin:0 0 0.5rem;line-height:1.5;">Diagnóstico, diseño e implementación de sistema de marketing digital. 6–8 semanas por proyecto.</p>
+                <div style="font-size:0.8rem;"><span style="color:#4ade80;font-weight:700;">$45,000 MXN/proyecto</span> — <span style="color:#94a3b8;">Margen neto $33,500</span></div>
+            </div>
+        </div>
+        <div class="reveal" style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.8rem;">
+            <div style="background:rgba(255,255,255,0.04);border-left:4px solid #4ade80;border-radius:0 10px 10px 0;padding:0.75rem 0.9rem;">
+                <div style="font-size:0.7rem;color:#94a3b8;margin-bottom:0.25rem;">Socio estratégico</div>
+                <div style="font-weight:700;color:#4ade80;font-size:0.85rem;">20% equity + 10% comisión variable</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.04);border-left:4px solid #3b82f6;border-radius:0 10px 10px 0;padding:0.75rem 0.9rem;">
+                <div style="font-size:0.7rem;color:#94a3b8;margin-bottom:0.25rem;">Pago B2B</div>
+                <div style="font-weight:700;color:#93c5fd;font-size:0.85rem;">SPEI — 0% comisión procesador</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.04);border-left:4px solid #818cf8;border-radius:0 10px 10px 0;padding:0.75rem 0.9rem;">
+                <div style="font-size:0.7rem;color:#94a3b8;margin-bottom:0.25rem;">Inversión inicial única</div>
+                <div style="font-weight:700;color:#a5b4fc;font-size:0.85rem;">$75,000 MXN (catálogo + materiales)</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 8: Proyección y Escenarios B2B -->
+<div class="slide slide-8" data-slide="8">
+    <div class="gradient-mesh">
+        <div class="blob" style="width:360px;height:360px;top:-60px;right:-50px;background:#06b6d4;opacity:0.09;"></div>
+        <div class="blob" style="width:240px;height:240px;bottom:-50px;left:-40px;background:#4ade80;opacity:0.07;"></div>
+    </div>
+    <div class="content">
+        <h2 class="reveal" style="font-family:'Playfair Display',serif;font-size:clamp(1.7rem,3.5vw,2.5rem);font-weight:700;margin-bottom:0.25rem;">Proyección B2B: Escenarios (jul–dic 2026)</h2>
+        <p class="reveal" style="font-size:0.85rem;color:#94a3b8;margin-bottom:0.9rem;">25 contratos en escenario base. Incluso en conservador, la inversión de $75,000 se recupera en el 2.° mes.</p>
+        <div class="reveal" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:0.9rem;">
+            <div style="background:rgba(59,130,246,0.07);border:1px solid rgba(59,130,246,0.2);border-radius:14px;padding:1rem;text-align:center;">
+                <div style="font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.4rem;">Conservador</div>
+                <div style="font-size:1.5rem;font-weight:900;color:#93c5fd;">$176,920</div>
+                <div style="font-size:0.75rem;color:#94a3b8;margin-top:0.3rem;">Margen neto B2B</div>
+                <div style="font-size:0.75rem;color:#94a3b8;margin-top:0.2rem;">7 paquetes + 5 proyectos</div>
+            </div>
+            <div style="background:rgba(34,197,94,0.09);border:2px solid rgba(34,197,94,0.3);border-radius:14px;padding:1rem;text-align:center;position:relative;">
+                <div style="position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:#4ade80;color:#0c1220;font-size:0.65rem;font-weight:700;border-radius:20px;padding:2px 10px;letter-spacing:0.08em;">BASE</div>
+                <div style="font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.4rem;">Base</div>
+                <div style="font-size:1.5rem;font-weight:900;color:#4ade80;" class="stat-glow">$462,340</div>
+                <div style="font-size:0.75rem;color:#94a3b8;margin-top:0.3rem;">Margen neto B2B</div>
+                <div style="font-size:0.75rem;color:#94a3b8;margin-top:0.2rem;">14 paquetes + 11 proyectos</div>
+            </div>
+            <div style="background:rgba(129,140,248,0.07);border:1px solid rgba(129,140,248,0.2);border-radius:14px;padding:1rem;text-align:center;">
+                <div style="font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.4rem;">Optimista</div>
+                <div style="font-size:1.5rem;font-weight:900;color:#a5b4fc;">$702,200</div>
+                <div style="font-size:0.75rem;color:#94a3b8;margin-top:0.3rem;">Margen neto B2B</div>
+                <div style="font-size:0.75rem;color:#94a3b8;margin-top:0.2rem;">20 paquetes + 16 proyectos</div>
+            </div>
+        </div>
+        <div class="reveal" style="background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.2);border-radius:12px;padding:0.8rem 1rem;">
+            <p style="margin:0;font-size:0.85rem;color:#cbd5e1;line-height:1.5;"><span style="color:#4ade80;font-weight:600;">Resultado integrado (escenario base):</span> Canal B2C ($700,468) + Canal B2B ($682,600) = <strong style="color:#f1f5f9;">$1,383,068 MXN</strong> en ingresos en 6 meses → Utilidad neta proyectada: <strong style="color:#4ade80;">$505,667 MXN</strong> · Margen neto: <strong style="color:#4ade80;">36.6%</strong></p>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 9: Financiamiento y Valuación -->
+<div class="slide slide-9" data-slide="9">
+    <div class="gradient-mesh">
+        <div class="blob" style="width:380px;height:380px;top:-70px;right:-55px;background:#3b82f6;opacity:0.09;"></div>
+        <div class="blob" style="width:260px;height:260px;bottom:-55px;left:-40px;background:#818cf8;opacity:0.07;"></div>
+    </div>
+    <div class="content">
+        <h2 class="reveal" style="font-family:'Playfair Display',serif;font-size:clamp(1.7rem,3.5vw,2.5rem);font-weight:700;margin-bottom:0.25rem;">Financiamiento y Valuación de la Empresa</h2>
+        <p class="reveal" style="font-size:0.85rem;color:#94a3b8;margin-bottom:0.9rem;">La decisión de financiamiento no es solo financiera: tiene una dimensión comercial que inclina la balanza.</p>
+        <div class="reveal" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:0.9rem;">
+            <div>
+                <div style="font-size:0.72rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:0.6rem;">Valuación de referencia</div>
+                <div style="display:flex;flex-direction:column;gap:0.5rem;">
+                    <div style="background:rgba(255,255,255,0.04);border-left:4px solid #3b82f6;border-radius:0 10px 10px 0;padding:0.7rem 0.9rem;">
+                        <div style="font-size:0.7rem;color:#94a3b8;margin-bottom:0.2rem;">Múltiplo EBITDA (3x–4x)</div>
+                        <div style="font-weight:700;color:#93c5fd;">$1,653,240 – $2,204,320 MXN</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.04);border-left:4px solid #818cf8;border-radius:0 10px 10px 0;padding:0.7rem 0.9rem;">
+                        <div style="font-size:0.7rem;color:#94a3b8;margin-bottom:0.2rem;">Múltiplo ingresos (1.5x)</div>
+                        <div style="font-weight:700;color:#a5b4fc;">$2,101,403 MXN</div>
+                    </div>
+                    <div style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.25);border-radius:10px;padding:0.7rem 0.9rem;text-align:center;">
+                        <div style="font-size:0.7rem;color:#94a3b8;margin-bottom:0.2rem;">Punto de negociación</div>
+                        <div style="font-weight:900;font-size:1.2rem;color:#93c5fd;">$2,000,000 MXN</div>
+                        <div style="font-size:0.75rem;color:#94a3b8;">20% equity = $400,000 MXN</div>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div style="font-size:0.72rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:0.6rem;">Comparativa de opciones</div>
+                <div style="display:flex;flex-direction:column;gap:0.5rem;">
+                    <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.22);border-radius:12px;padding:0.75rem 0.9rem;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <span style="font-weight:700;color:#4ade80;font-size:0.85rem;">Opción A: Socio estratégico ★</span>
+                            <span style="background:rgba(34,197,94,0.18);color:#4ade80;border-radius:20px;padding:1px 9px;font-size:0.68rem;font-weight:700;">Recomendada</span>
+                        </div>
+                        <p style="font-size:0.78rem;color:#cbd5e1;margin:0.3rem 0 0;line-height:1.4;">$300K efectivo + $100K en trabajo. Aporta capital y red de contactos corporativos. Sin costo financiero.</p>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:0.75rem 0.9rem;">
+                        <div style="font-weight:600;color:#94a3b8;font-size:0.85rem;">Opción B: Crédito bancario</div>
+                        <p style="font-size:0.78rem;color:#94a3b8;margin:0.3rem 0 0;line-height:1.4;">15–22% anual. Sin dilución accionaria pero no resuelve el acceso a tomadores de decisión corporativos. Inicio 6–8 semanas más tardío.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 10: Conclusiones y Plan de Acción -->
+<div class="slide slide-10" data-slide="10">
+    <div class="gradient-mesh">
+        <div class="blob" style="width:500px;height:500px;top:-110px;right:-90px;background:#3b82f6;opacity:0.14;"></div>
+        <div class="blob" style="width:320px;height:320px;bottom:-80px;left:-60px;background:#818cf8;opacity:0.12;"></div>
+        <div class="blob" style="width:200px;height:200px;top:40%;left:15%;background:#06b6d4;opacity:0.09;"></div>
+    </div>
+    <canvas class="particle-canvas" style="position:absolute;inset:0;z-index:1;"></canvas>
+    <div class="content">
+        <div class="reveal" style="font-size:0.75rem;letter-spacing:0.18em;text-transform:uppercase;color:#94a3b8;margin-bottom:0.5rem;font-family:'DM Sans',sans-serif;">Conclusiones Generales</div>
+        <h2 class="reveal" style="font-family:'Playfair Display',serif;font-size:clamp(1.8rem,3.8vw,2.8rem);font-weight:900;margin-bottom:0.8rem;background:linear-gradient(135deg,#3b82f6,#818cf8,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Plan de Acción 2026</h2>
+        <div class="reveal" style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;margin-bottom:0.8rem;">
+            <div style="background:rgba(239,68,68,0.07);border-left:4px solid #f87171;border-radius:0 12px 12px 0;padding:0.85rem 1rem;">
+                <div style="font-weight:700;color:#f87171;font-size:0.88rem;margin-bottom:0.25rem;">❌ Suscripción — No reactivar ahora</div>
+                <p style="font-size:0.78rem;color:#fca5a5;margin:0;line-height:1.4;">Requiere 5–10x más audiencia o $50,000/mes en adquisición sostenido por 6 meses. Evidencia empírica confirma la decisión.</p>
+            </div>
+            <div style="background:rgba(34,197,94,0.08);border-left:4px solid #4ade80;border-radius:0 12px 12px 0;padding:0.85rem 1rem;">
+                <div style="font-weight:700;color:#4ade80;font-size:0.88rem;margin-bottom:0.25rem;">✅ B2B — Estrategia principal (jul–dic)</div>
+                <p style="font-size:0.78rem;color:#86efac;margin:0;line-height:1.4;">25 contratos proyectados. Margen neto $462,340 MXN en 6 meses. Recuperación de inversión inicial en el 2.° mes.</p>
+            </div>
+            <div style="background:rgba(59,130,246,0.07);border-left:4px solid #3b82f6;border-radius:0 12px 12px 0;padding:0.85rem 1rem;">
+                <div style="font-weight:700;color:#93c5fd;font-size:0.88rem;margin-bottom:0.25rem;">🎬 YouTube + Afiliados — Complementario</div>
+                <p style="font-size:0.78rem;color:#bfdbfe;margin:0;line-height:1.4;">$30K–$150K MXN anuales + efecto embudo hacia B2C y B2B. Costo de implementación cercano a cero.</p>
+            </div>
+            <div style="background:rgba(234,179,8,0.07);border-left:4px solid #fde047;border-radius:0 12px 12px 0;padding:0.85rem 1rem;">
+                <div style="font-weight:700;color:#fde047;font-size:0.88rem;margin-bottom:0.25rem;">🌎 Internacionalización — 2027+</div>
+                <p style="font-size:0.78rem;color:#fef08a;margin:0;line-height:1.4;">LATAM EdTech: CAGR 18.2% hacia $3,300M USD en 2027. Colombia, Chile y Argentina como mercados objetivo. Requiere B2B estabilizado primero.</p>
+            </div>
+        </div>
+        <div class="reveal" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:12px;padding:0.75rem 1rem;text-align:center;">
+            <p style="margin:0;font-size:0.85rem;color:#cbd5e1;">Utilidad neta proyectada 2H-2026 (escenario base): <strong style="color:#4ade80;font-size:1rem;">$505,667 MXN</strong> · Margen neto integrado: <strong style="color:#93c5fd;">36.6%</strong></p>
+        </div>
+    </div>
+</div>
+
+
+<!-- SLIDE 11: Gracias -->
+<div class="slide slide-11" data-slide="11">
+    <div class="gradient-mesh">
+        <div class="blob" style="width:500px;height:500px;top:-110px;right:-90px;background:#3b82f6;opacity:0.15;"></div>
+        <div class="blob" style="width:340px;height:340px;bottom:-90px;left:-60px;background:#818cf8;opacity:0.12;"></div>
+        <div class="blob" style="width:220px;height:220px;top:38%;left:14%;background:#06b6d4;opacity:0.10;"></div>
+    </div>
+    <canvas class="particle-canvas" style="position:absolute;inset:0;z-index:1;"></canvas>
+    <div class="content" style="text-align:center;">
+        <div class="reveal" style="font-size:5rem;margin-bottom:1rem;animation:float 3s ease-in-out infinite;">🙏</div>
+        <h1 class="reveal" style="font-family:'Playfair Display',serif;font-size:clamp(3rem,7vw,6rem);font-weight:900;line-height:1.1;margin:0 0 1rem;background:linear-gradient(135deg,#3b82f6,#818cf8,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Gracias</h1>
+        <p class="reveal" style="font-size:clamp(0.9rem,1.4vw,1.1rem);color:#94a3b8;letter-spacing:0.18em;text-transform:uppercase;margin-bottom:0.5rem;">Francisco Valencia Martínez del Campo</p>
+        <p class="reveal" style="font-size:clamp(0.8rem,1.1vw,0.95rem);color:#64748b;letter-spacing:0.1em;">Análisis Financiero y Monetización de Negocios Digitales · Universidad ICEMéxico · 2026</p>
+    </div>
+</div>
+
+</div><!-- /.deck -->
+
+<div class="nav-controls">
+    <button class="nav-btn" onclick="changeSlide(-1)">&#8249;</button>
+    <div class="slide-dots" id="dots"></div>
+    <button class="nav-btn" onclick="changeSlide(1)">&#8250;</button>
+    <span class="slide-counter" id="counter">1 / 10</span>
+</div>
+
+<script>
+    let current = 1;
+    const total = document.querySelectorAll('.slide').length;
+    const dotsContainer = document.getElementById('dots');
+    const counter = document.getElementById('counter');
+    for (let i = 1; i <= total; i++) { const dot = document.createElement('div'); dot.className = 'dot' + (i === 1 ? ' active' : ''); dot.onclick = () => goToSlide(i); dotsContainer.appendChild(dot); }
+    function goToSlide(n) {
+        const prev = document.querySelector('.slide.active');
+        const next = document.querySelector('.slide[data-slide="' + n + '"]');
+        if (prev) prev.classList.remove('active');
+        if (next) { next.classList.add('active'); animateSlide(next); }
+        current = n; updateNav();
+    }
+    function changeSlide(dir) { let next = current + dir; if (next < 1) next = total; if (next > total) next = 1; goToSlide(next); }
+    function updateNav() { document.querySelectorAll('.dot').forEach((d,i)=>{ d.classList.toggle('active', i+1===current); }); counter.textContent = current + ' / ' + total; }
+    document.addEventListener('keydown',(e)=>{ if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();changeSlide(1);} if(e.key==='ArrowLeft'){e.preventDefault();changeSlide(-1);} });
+    let touchStartX = 0;
+    document.addEventListener('touchstart',(e)=>{ touchStartX = e.touches[0].clientX; });
+    document.addEventListener('touchend',(e)=>{ const diff = touchStartX - e.changedTouches[0].clientX; if(Math.abs(diff)>50) changeSlide(diff>0?1:-1); });
+
+    function animateSlide(slide) {
+        slide.querySelectorAll('.reveal').forEach((el,i)=>{
+            el.style.transition = 'none'; el.style.opacity = '0'; el.style.transform = 'translateY(20px)';
+            el.offsetHeight;
+            const delay = i * 0.08;
+            el.style.transition = 'opacity 0.35s ease ' + delay + 's, transform 0.35s ease ' + delay + 's';
+            el.style.opacity = '1'; el.style.transform = 'translateY(0)';
+        });
+        animateSlideEffects(slide);
+    }
+    function animateSlideEffects(slide) {
+        slide.querySelectorAll('[data-count]:not(.counted)').forEach(el=>{
+            el.classList.add('counted');
+            const target = parseInt(el.dataset.count), suffix = el.dataset.suffix||'', prefix = el.dataset.prefix||'';
+            let cur = 0; const step = target/40;
+            const timer = setInterval(()=>{ cur+=step; if(cur>=target){cur=target;clearInterval(timer);} el.textContent=prefix+Math.round(cur).toLocaleString()+suffix; },30);
+        });
+        slide.querySelectorAll('.bar-fill:not(.fill-init)').forEach((bar,i)=>{
+            bar.classList.add('fill-init');
+            bar.style.width='0%'; bar.style.transition='width 0.6s ease '+(i*0.1)+'s'; bar.offsetHeight; bar.style.width=bar.dataset.width+'%';
+        });
+    }
+
+    document.addEventListener('mousemove',(e)=>{
+        const s = document.querySelector('.mouse-spotlight');
+        if(s){ const rgb = getComputedStyle(document.documentElement).getPropertyValue('--glow-color-rgb').trim()||'59,130,246'; s.style.background='radial-gradient(600px circle at '+e.clientX+'px '+e.clientY+'px, rgba('+rgb+', 0.055), transparent 40%)'; }
+    });
+
+    (function(){
+        let mx=window.innerWidth/2, my=window.innerHeight/2;
+        const cx=window.innerWidth/2, cy=window.innerHeight/2;
+        document.addEventListener('mousemove',(e)=>{ mx=e.clientX; my=e.clientY; });
+        (function tick(){
+            const ox=(mx-cx)/cx, oy=(my-cy)/cy;
+            document.querySelectorAll('.deco-shape').forEach(s=>{ const sp=parseFloat(s.dataset.speed)||0.03; s.style.transform='translate('+(ox*sp*100)+'px,'+(oy*sp*100)+'px)'; });
+            requestAnimationFrame(tick);
+        })();
+    })();
+
+    window.initParticles = function(canvas, options) {
+        if(!canvas) return;
+        const ctx = canvas.getContext('2d');
+        canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight;
+        const interactive = options.interactive !== false;
+        const count = options.count || (interactive ? 55 : 18);
+        let mx=-1000, my=-1000;
+        const rgb = getComputedStyle(document.documentElement).getPropertyValue('--glow-color-rgb').trim()||'59,130,246';
+        const [r,g,b] = rgb.split(',').map(Number);
+        const particles = Array.from({length:count},()=>({x:Math.random()*canvas.width,y:Math.random()*canvas.height,vx:(Math.random()-0.5)*0.3,vy:(Math.random()-0.5)*0.3,size:Math.random()*2.5+0.8,alpha:Math.random()*0.35+0.1}));
+        if(interactive){ canvas.addEventListener('mousemove',(e)=>{ const rect=canvas.getBoundingClientRect(); mx=e.clientX-rect.left; my=e.clientY-rect.top; }); canvas.addEventListener('mouseleave',()=>{ mx=-1000; my=-1000; }); }
+        (function animate(){
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            particles.forEach(p=>{
+                if(interactive){ const dx=p.x-mx,dy=p.y-my,dist=Math.sqrt(dx*dx+dy*dy); if(dist<120){ const force=(120-dist)/120*2; p.vx+=(dx/dist)*force*0.1; p.vy+=(dy/dist)*force*0.1; } }
+                p.vx*=0.98; p.vy*=0.98; p.x+=p.vx; p.y+=p.vy;
+                if(p.x<0)p.x=canvas.width; if(p.x>canvas.width)p.x=0;
+                if(p.y<0)p.y=canvas.height; if(p.y>canvas.height)p.y=0;
+                ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
+                ctx.fillStyle='rgba('+r+','+g+','+b+','+p.alpha+')'; ctx.fill();
+            });
+            requestAnimationFrame(animate);
+        })();
+    };
+    document.querySelectorAll('.particle-canvas').forEach(c=>window.initParticles(c,{interactive:true,count:55}));
+    document.querySelectorAll('.particle-canvas-ambient').forEach(c=>window.initParticles(c,{interactive:false,count:18}));
+    try { animateSlide(document.querySelector('.slide.active')); } catch(e) { console.warn(e); }
+</script>
+</body>
+</html>
